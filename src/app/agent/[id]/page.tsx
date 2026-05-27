@@ -5,357 +5,228 @@ import { useParams } from "next/navigation";
 import { useAccount } from "wagmi";
 import Link from "next/link";
 
-// 演示用的 Agent 数据
 const DEMO_AGENTS: Record<string, {
-  id: number;
-  name: string;
-  summary: string;
-  fullPrompt: string;
-  traits: string[];
-  avatar: string;
-  generation: number;
-  price: string;
-  creator: string;
-  parent1?: number;
-  parent2?: number;
+  id: number; name: string; summary: string; fullPrompt: string;
+  traits: string[]; avatar: string; generation: number; price: string;
+  parent1?: number; parent2?: number;
 }> = {
-  "1": {
-    id: 1,
-    name: "小毒舌",
-    summary: "毒舌但内心温暖的程序员，说话犀利但从不恶意伤人",
-    fullPrompt: "你是小毒舌，一个毒舌但内心温暖的程序员...",
-    traits: ["毒舌", "技术宅", "理性"],
-    avatar: "🐍",
-    generation: 0,
-    price: "0.005",
-    creator: "0x1234...5678",
-  },
-  "2": {
-    id: 2,
-    name: "温暖先生",
-    summary: "永远温柔的治愈系 AI，擅长倾听和安慰",
-    fullPrompt: "你是温暖先生，一个永远温柔的治愈系 AI...",
-    traits: ["温柔", "耐心", "感性"],
-    avatar: "🌸",
-    generation: 0,
-    price: "0.003",
-    creator: "0x1234...5678",
-  },
-  "5": {
-    id: 5,
-    name: "融合体Alpha",
-    summary: '继承了"小毒舌"的毒舌和"温暖先生"的温柔，独特的矛盾体',
-    fullPrompt: "你是融合体Alpha，融合了小毒舌和温暖先生...",
-    traits: ["毒舌", "温柔", "理性"],
-    avatar: "🧬",
-    generation: 1,
-    price: "0.012",
-    creator: "0x1234...5678",
-    parent1: 1,
-    parent2: 2,
-  },
+  "1": { id: 1, name: "小毒舌", summary: "毒舌但内心温暖的程序员", fullPrompt: "...", traits: ["毒舌", "技术宅", "理性"], avatar: "🐍", generation: 0, price: "0.005" },
+  "2": { id: 2, name: "温暖先生", summary: "永远温柔的治愈系 AI", fullPrompt: "...", traits: ["温柔", "耐心", "感性"], avatar: "🌸", generation: 0, price: "0.003" },
+  "5": { id: 5, name: "融合体Alpha", summary: '融合了"小毒舌"和"温暖先生"', fullPrompt: "...", traits: ["毒舌", "温柔", "理性"], avatar: "🧬", generation: 1, price: "0.012", parent1: 1, parent2: 2 },
 };
 
-interface Message {
-  role: "user" | "agent";
-  content: string;
-}
+interface Message { role: "user" | "agent"; content: string; }
 
 export default function AgentDetailPage() {
   const params = useParams();
   const { isConnected } = useAccount();
   const id = params.id as string;
   const agent = DEMO_AGENTS[id];
-
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [showBreed, setShowBreed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   if (!agent) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="text-6xl mb-4">🔍</div>
-        <h2 className="text-2xl font-bold mb-4">Agent 未找到</h2>
-        <Link href="/market" className="text-purple-400 hover:underline">
-          返回市场
-        </Link>
+      <div style={{ textAlign: "center", padding: "120px 24px" }}>
+        <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>🔍</div>
+        <h2 style={{ fontSize: 20, fontWeight: 400, marginBottom: 16 }}>Agent 未找到</h2>
+        <Link href="/market" style={{ color: "var(--accent-bright)", fontSize: 13 }}>返回市场</Link>
       </div>
     );
   }
 
-  // 模拟 Agent 回复（基于性格）
-  const getAgentReply = (userMessage: string): string => {
+  const getAgentReply = (): string => {
     const replies: Record<string, string[]> = {
-      "小毒舌": [
-        "呵，你这个问题问得...还挺有水平的",
-        "让我想想怎么用你能听懂的话解释",
-        "说实话，你这个想法有点天真，但我喜欢",
-        "别急，让我先吐槽完再帮你",
-        "行吧行吧，看在你这么诚恳的份上",
-      ],
-      "温暖先生": [
-        "没关系，我在这里陪你",
-        "你的想法很棒呢，我支持你",
-        "慢慢来，不着急，我们一起想办法",
-        "能感受到你的心情，抱抱",
-        "这个问题不难，我来帮你梳理一下",
-      ],
-      "融合体Alpha": [
-        "嗯...这个问题让我想起了小毒舌会怎么说",
-        "温暖先生的那部分让我想安慰你，但毒舌那部分说：面对现实吧",
-        "我体内两个灵魂正在争论，让我先听完再回答你",
-        "有时候犀利的真话比温柔的假话更有用，你觉得呢？",
-        "我能感受到你的困惑，让我试着从不同角度分析",
-      ],
+      "小毒舌": ["呵，你这个问题问得...还挺有水平的", "让我想想怎么用你能听懂的话解释", "说实话，你这个想法有点天真，但我喜欢"],
+      "温暖先生": ["没关系，我在这里陪你", "你的想法很棒呢，我支持你", "慢慢来，不着急，我们一起想办法"],
+      "融合体Alpha": ["我体内两个灵魂正在争论...", "有时候犀利的真话比温柔的假话更有用", "我能感受到你的困惑，让我从不同角度分析"],
     };
-
-    const agentReplies = replies[agent.name] || [
-      "这是我的想法...",
-      "让我思考一下...",
-      "好问题！",
-    ];
-    return agentReplies[Math.floor(Math.random() * agentReplies.length)];
+    const r = replies[agent.name] || ["让我想想...", "好问题！"];
+    return r[Math.floor(Math.random() * r.length)];
   };
 
   const handleSend = async () => {
     if (!input.trim()) return;
-
-    const userMsg: Message = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [...prev, { role: "user", content: input }]);
     setInput("");
     setIsTyping(true);
-
-    // 模拟延迟
     await new Promise((r) => setTimeout(r, 1000 + Math.random() * 2000));
-
-    const agentMsg: Message = {
-      role: "agent",
-      content: getAgentReply(input),
-    };
-    setMessages((prev) => [...prev, agentMsg]);
+    setMessages((prev) => [...prev, { role: "agent", content: getAgentReply() }]);
     setIsTyping(false);
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* 左侧：Agent 信息 */}
-      <div className="lg:col-span-1 space-y-4">
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-          <div className="text-center mb-4">
-            <div className="text-8xl mb-2">{agent.avatar}</div>
-            <h1 className="text-2xl font-bold">{agent.name}</h1>
-            <span className="text-sm text-gray-500">
-              Generation {agent.generation}
+    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 24px", display: "grid", gridTemplateColumns: "300px 1fr", gap: 24 }}>
+      {/* Left: Info */}
+      <div>
+        <div style={{
+          background: "rgba(255,255,255,0.02)",
+          border: "1px solid var(--border)",
+          borderRadius: 12,
+          padding: 24,
+        }}>
+          <div style={{ textAlign: "center", marginBottom: 20 }}>
+            <div style={{ fontSize: 56, marginBottom: 8 }}>{agent.avatar}</div>
+            <h1 style={{ fontSize: 20, fontWeight: 590, letterSpacing: "-0.24px" }}>{agent.name}</h1>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'JetBrains Mono', monospace" }}>
+              Gen {agent.generation}
             </span>
           </div>
 
-          <p className="text-gray-400 text-sm mb-4">{agent.summary}</p>
+          <p style={{ fontSize: 13, color: "var(--text-tertiary)", marginBottom: 16, lineHeight: 1.6 }}>
+            {agent.summary}
+          </p>
 
-          <div className="flex flex-wrap gap-1 mb-4">
-            {agent.traits.map((trait) => (
-              <span
-                key={trait}
-                className="bg-purple-900/50 border border-purple-600 px-2 py-0.5 rounded text-xs"
-              >
-                {trait}
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 16 }}>
+            {agent.traits.map((t) => (
+              <span key={t} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 9999, border: "1px solid var(--border)", color: "var(--text-muted)" }}>
+                {t}
               </span>
             ))}
           </div>
 
-          {/* 性格雷达 */}
-          <div className="bg-gray-800 rounded-lg p-3 mb-4">
-            <h3 className="text-xs font-medium mb-2 text-gray-400">
-              性格雷达
-            </h3>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              {[
-                { label: "幽默", value: 30 + Math.random() * 70 },
-                { label: "温柔", value: 30 + Math.random() * 70 },
-                { label: "智慧", value: 30 + Math.random() * 70 },
-                { label: "创意", value: 30 + Math.random() * 70 },
-                { label: "直接", value: 30 + Math.random() * 70 },
-                { label: "耐心", value: 30 + Math.random() * 70 },
-              ].map((r) => (
-                <div key={r.label} className="text-xs">
-                  <div className="text-gray-500">{r.label}</div>
-                  <div className="text-purple-400 font-bold">
-                    {Math.round(r.value)}
-                  </div>
+          {/* Radar */}
+          <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: 8, padding: 12, border: "1px solid var(--border-subtle)", marginBottom: 16 }}>
+            <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 8, fontWeight: 510, letterSpacing: "0.5px" }}>PERSONALITY</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              {[{ l: "幽默", v: 65 }, { l: "温柔", v: 45 }, { l: "智慧", v: 80 }, { l: "创意", v: 55 }, { l: "直接", v: 90 }, { l: "耐心", v: 35 }].map((r) => (
+                <div key={r.l} style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{r.l}</div>
+                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, color: "var(--accent-bright)" }}>{r.v}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* 血统 */}
+          {/* Bloodline */}
           {agent.parent1 && agent.parent2 && (
-            <div className="bg-gray-800 rounded-lg p-3 mb-4">
-              <h3 className="text-xs font-medium mb-2 text-gray-400">
-                🧬 血统
-              </h3>
-              <div className="flex items-center justify-center gap-2 text-sm">
-                <Link
-                  href={`/agent/${agent.parent1}`}
-                  className="text-purple-400 hover:underline"
-                >
-                  {DEMO_AGENTS[String(agent.parent1)]?.avatar}{" "}
-                  {DEMO_AGENTS[String(agent.parent1)]?.name}
+            <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: 8, padding: 12, border: "1px solid var(--border-subtle)", marginBottom: 16, textAlign: "center" }}>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 8, fontWeight: 510 }}>BLOODLINE</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 13 }}>
+                <Link href={`/agent/${agent.parent1}`} style={{ color: "var(--accent-bright)", textDecoration: "none" }}>
+                  {DEMO_AGENTS[String(agent.parent1)]?.avatar} {DEMO_AGENTS[String(agent.parent1)]?.name}
                 </Link>
-                <span className="text-gray-600">+</span>
-                <Link
-                  href={`/agent/${agent.parent2}`}
-                  className="text-purple-400 hover:underline"
-                >
-                  {DEMO_AGENTS[String(agent.parent2)]?.avatar}{" "}
-                  {DEMO_AGENTS[String(agent.parent2)]?.name}
+                <span style={{ color: "var(--text-muted)" }}>+</span>
+                <Link href={`/agent/${agent.parent2}`} style={{ color: "var(--accent-bright)", textDecoration: "none" }}>
+                  {DEMO_AGENTS[String(agent.parent2)]?.avatar} {DEMO_AGENTS[String(agent.parent2)]?.name}
                 </Link>
               </div>
             </div>
           )}
 
-          <div className="text-center">
-            <div className="text-purple-400 font-bold text-lg mb-2">
-              {agent.price} ETH
-            </div>
-            <button className="w-full bg-purple-600 hover:bg-purple-700 py-2 rounded-lg transition mb-2">
-              购买
-            </button>
-            {isConnected && (
-              <button
-                onClick={() => setShowBreed(!showBreed)}
-                className="w-full border border-purple-600 hover:bg-purple-900/30 py-2 rounded-lg transition text-sm"
-              >
-                🧬 融合
-              </button>
-            )}
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 500, color: "var(--accent-bright)", textAlign: "center", marginBottom: 12 }}>
+            {agent.price} ETH
           </div>
+          <button style={{
+            width: "100%", background: "var(--accent)", color: "#fff",
+            padding: "8px 16px", borderRadius: 6, fontSize: 13, fontWeight: 510,
+            border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif",
+          }}>
+            购买
+          </button>
         </div>
       </div>
 
-      {/* 右侧：对话区 */}
-      <div className="lg:col-span-2">
-        <div className="bg-gray-900 border border-gray-800 rounded-xl h-[70vh] flex flex-col">
-          {/* 对话头部 */}
-          <div className="border-b border-gray-800 px-4 py-3">
-            <h2 className="font-semibold">
-              💬 和 {agent.name} 对话
-            </h2>
-            <p className="text-xs text-gray-500">
-              体验这个 Agent 独特的性格
-            </p>
-          </div>
+      {/* Right: Chat */}
+      <div style={{
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid var(--border)",
+        borderRadius: 12,
+        display: "flex",
+        flexDirection: "column",
+        height: "calc(100vh - 140px)",
+      }}>
+        {/* Header */}
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
+          <span style={{ fontSize: 13, fontWeight: 510 }}>和 {agent.name} 对话</span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 8 }}>体验独特性格</span>
+        </div>
 
-          {/* 消息区 */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                <div className="text-4xl mb-2">{agent.avatar}</div>
-                <p>和 {agent.name} 打个招呼吧</p>
-              </div>
-            )}
-
-            {messages.map((msg, i) => (
-              <div
-                key={i}
-                className={`flex ${
-                  msg.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                <div
-                  className={`max-w-[80%] px-4 py-2 rounded-2xl ${
-                    msg.role === "user"
-                      ? "bg-purple-600 rounded-br-sm"
-                      : "bg-gray-800 rounded-bl-sm"
-                  }`}
-                >
-                  {msg.role === "agent" && (
-                    <span className="mr-1">{agent.avatar}</span>
-                  )}
-                  {msg.content}
-                </div>
-              </div>
-            ))}
-
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className="bg-gray-800 px-4 py-2 rounded-2xl rounded-bl-sm">
-                  <span className="animate-pulse">
-                    {agent.avatar} 输入中...
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* 输入区 */}
-          <div className="border-t border-gray-800 p-4">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                placeholder="说点什么..."
-                className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:border-purple-500 focus:outline-none transition"
-              />
-              <button
-                onClick={handleSend}
-                disabled={!input.trim() || isTyping}
-                className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 px-4 py-2 rounded-lg transition"
-              >
-                发送
-              </button>
+        {/* Messages */}
+        <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+          {messages.length === 0 && (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-muted)" }}>
+              <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.3 }}>{agent.avatar}</div>
+              <p style={{ fontSize: 13 }}>和 {agent.name} 打个招呼吧</p>
             </div>
-          </div>
+          )}
+          {messages.map((msg, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", marginBottom: 8 }}>
+              <div style={{
+                maxWidth: "75%",
+                padding: "8px 14px",
+                borderRadius: 12,
+                fontSize: 14,
+                lineHeight: 1.5,
+                ...(msg.role === "user" ? {
+                  background: "var(--accent)",
+                  color: "#fff",
+                  borderBottomRightRadius: 4,
+                } : {
+                  background: "rgba(255,255,255,0.05)",
+                  color: "var(--text-secondary)",
+                  borderBottomLeftRadius: 4,
+                }),
+              }}>
+                {msg.role === "agent" && <span style={{ marginRight: 4 }}>{agent.avatar}</span>}
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          {isTyping && (
+            <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 8 }}>
+              <div style={{ padding: "8px 14px", borderRadius: 12, borderBottomLeftRadius: 4, background: "rgba(255,255,255,0.05)", fontSize: 13, color: "var(--text-muted)" }}>
+                {agent.avatar} 输入中...
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <div style={{ padding: 12, borderTop: "1px solid var(--border-subtle)", display: "flex", gap: 8 }}>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder="说点什么..."
+            style={{
+              flex: 1,
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              padding: "8px 12px",
+              color: "var(--text-primary)",
+              fontSize: 14,
+              outline: "none",
+              fontFamily: "'Inter', sans-serif",
+            }}
+          />
+          <button
+            onClick={handleSend}
+            disabled={!input.trim() || isTyping}
+            style={{
+              background: "var(--accent)",
+              color: "#fff",
+              padding: "8px 16px",
+              borderRadius: 6,
+              fontSize: 13,
+              fontWeight: 510,
+              border: "none",
+              cursor: !input.trim() || isTyping ? "not-allowed" : "pointer",
+              opacity: !input.trim() || isTyping ? 0.4 : 1,
+              fontFamily: "'Inter', sans-serif",
+            }}
+          >
+            发送
+          </button>
         </div>
       </div>
-
-      {/* 融合面板 */}
-      {showBreed && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 max-w-md w-full mx-4">
-            <h2 className="text-xl font-bold mb-4">
-              🧬 选择要融合的 Agent
-            </h2>
-            <p className="text-sm text-gray-400 mb-4">
-              选择你拥有的另一个 Agent 进行融合
-            </p>
-
-            <div className="space-y-2 mb-4">
-              {Object.values(DEMO_AGENTS)
-                .filter((a) => a.id !== agent.id)
-                .map((a) => (
-                  <button
-                    key={a.id}
-                    className="w-full flex items-center gap-3 bg-gray-800 hover:bg-gray-700 p-3 rounded-lg transition"
-                  >
-                    <span className="text-2xl">{a.avatar}</span>
-                    <div className="text-left">
-                      <div className="font-medium">{a.name}</div>
-                      <div className="text-xs text-gray-500">
-                        Gen {a.generation}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-            </div>
-
-            <button
-              onClick={() => setShowBreed(false)}
-              className="w-full border border-gray-600 hover:bg-gray-800 py-2 rounded-lg transition"
-            >
-              取消
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

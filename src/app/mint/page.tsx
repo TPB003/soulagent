@@ -7,6 +7,91 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { generatePersonality, AgentPersonality, generateRadarFromDescription } from "@/lib/ai";
 import { SOUL_AGENT_ABI, SOUL_AGENT_ADDRESS } from "@/lib/contract";
 
+const styles = {
+  container: { maxWidth: 560, margin: "0 auto", padding: "40px 24px" },
+  title: {
+    fontSize: 32,
+    fontWeight: 400,
+    letterSpacing: "-0.704px",
+    marginBottom: 8,
+    textAlign: "center" as const,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: "var(--text-tertiary)",
+    textAlign: "center" as const,
+    marginBottom: 48,
+    letterSpacing: "-0.165px",
+  },
+  label: {
+    display: "block",
+    fontSize: 13,
+    fontWeight: 510,
+    color: "var(--text-secondary)",
+    marginBottom: 8,
+    letterSpacing: "-0.13px",
+  },
+  input: {
+    width: "100%",
+    background: "rgba(255,255,255,0.02)",
+    border: "1px solid var(--border)",
+    borderRadius: 6,
+    padding: "10px 14px",
+    color: "var(--text-primary)",
+    fontSize: 15,
+    fontFamily: "'Inter', sans-serif",
+    fontFeatureSettings: "'cv01', 'ss03'",
+    outline: "none",
+    transition: "border-color 0.15s",
+  },
+  textarea: {
+    width: "100%",
+    background: "rgba(255,255,255,0.02)",
+    border: "1px solid var(--border)",
+    borderRadius: 6,
+    padding: "10px 14px",
+    color: "var(--text-primary)",
+    fontSize: 15,
+    fontFamily: "'Inter', sans-serif",
+    fontFeatureSettings: "'cv01', 'ss03'",
+    outline: "none",
+    resize: "none" as const,
+    transition: "border-color 0.15s",
+  },
+  btnPrimary: {
+    width: "100%",
+    background: "var(--accent)",
+    color: "#fff",
+    padding: "10px 24px",
+    borderRadius: 6,
+    fontSize: 14,
+    fontWeight: 510,
+    border: "none",
+    cursor: "pointer",
+    transition: "all 0.15s",
+    fontFamily: "'Inter', sans-serif",
+  },
+  btnGhost: {
+    flex: 1,
+    background: "rgba(255,255,255,0.02)",
+    color: "var(--text-secondary)",
+    padding: "10px 24px",
+    borderRadius: 6,
+    fontSize: 14,
+    fontWeight: 510,
+    border: "1px solid var(--border)",
+    cursor: "pointer",
+    transition: "all 0.15s",
+    fontFamily: "'Inter', sans-serif",
+  },
+  card: {
+    background: "rgba(255,255,255,0.02)",
+    border: "1px solid var(--border)",
+    borderRadius: 12,
+    padding: 24,
+  },
+};
+
 export default function MintPage() {
   const { isConnected } = useAccount();
   const [name, setName] = useState("");
@@ -16,9 +101,7 @@ export default function MintPage() {
   const [step, setStep] = useState<"input" | "preview" | "minting" | "done">("input");
 
   const { writeContract, data: hash, isPending } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
-  });
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
   const handleGenerate = async () => {
     if (!name || !description) return;
@@ -32,52 +115,62 @@ export default function MintPage() {
   const handleMint = async () => {
     if (!personality) return;
     setStep("minting");
-
     try {
       writeContract({
         address: SOUL_AGENT_ADDRESS,
         abi: SOUL_AGENT_ABI,
         functionName: "mint",
-        args: [
-          personality.name,
-          personality.summary, // 简单场景直接存 summary
-          personality.fullPrompt,
-        ],
+        args: [personality.name, personality.summary, personality.fullPrompt],
         value: parseEther("0.001"),
       });
-    } catch (err) {
-      console.error("Mint failed:", err);
+    } catch {
       setStep("preview");
     }
   };
 
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    e.target.style.borderColor = "var(--accent-bright)";
+  };
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    e.target.style.borderColor = "var(--border)";
+  };
+
   if (isSuccess) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="text-8xl mb-6">{personality?.avatar || "🧬"}</div>
-        <h2 className="text-3xl font-bold mb-4 text-green-400">
-          铸造成功！
+      <div style={{ ...styles.container, textAlign: "center", paddingTop: 120 }}>
+        <div style={{ fontSize: 64, marginBottom: 16 }}>{personality?.avatar || "🧬"}</div>
+        <h2
+          style={{
+            fontSize: 24,
+            fontWeight: 400,
+            letterSpacing: "-0.288px",
+            marginBottom: 8,
+            color: "var(--success)",
+          }}
+        >
+          铸造成功
         </h2>
-        <p className="text-gray-400 mb-2">{personality?.name} 已诞生</p>
-        <p className="text-sm text-gray-500 mb-8">
-          Transaction: {hash?.slice(0, 10)}...
+        <p style={{ fontSize: 15, color: "var(--text-tertiary)", marginBottom: 8 }}>
+          {personality?.name} 已诞生
         </p>
-        <div className="flex gap-4">
+        <p
+          style={{
+            fontSize: 12,
+            fontFamily: "'JetBrains Mono', monospace",
+            color: "var(--text-muted)",
+            marginBottom: 32,
+          }}
+        >
+          {hash?.slice(0, 16)}...
+        </p>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
           <button
-            onClick={() => {
-              setStep("input");
-              setName("");
-              setDescription("");
-              setPersonality(null);
-            }}
-            className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg transition"
+            onClick={() => { setStep("input"); setName(""); setDescription(""); setPersonality(null); }}
+            style={{ ...styles.btnPrimary, width: "auto" }}
           >
             再铸造一个
           </button>
-          <a
-            href="/market"
-            className="border border-gray-600 hover:bg-gray-800 px-6 py-2 rounded-lg transition"
-          >
+          <a href="/market" style={{ ...styles.btnGhost, width: "auto", textDecoration: "none", display: "inline-block" }}>
             去市场看看
           </a>
         </div>
@@ -87,142 +180,188 @@ export default function MintPage() {
 
   if (!isConnected) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="text-6xl mb-6">🔐</div>
-        <h2 className="text-2xl font-bold mb-4">请先连接钱包</h2>
-        <p className="text-gray-400 mb-8">铸造 Agent NFT 需要连接钱包</p>
-        <ConnectButton />
+      <div style={{ ...styles.container, textAlign: "center", paddingTop: 120 }}>
+        <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>🔐</div>
+        <h2 style={{ ...styles.title, marginBottom: 16 }}>请先连接钱包</h2>
+        <p style={{ fontSize: 15, color: "var(--text-tertiary)", marginBottom: 32 }}>
+          铸造 Agent NFT 需要连接钱包
+        </p>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <ConnectButton />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8 text-center">
-        🎨 铸造你的 AI 灵魂
-      </h1>
+    <div style={styles.container}>
+      <h1 style={styles.title}>铸造你的 AI 灵魂</h1>
+      <p style={styles.subtitle}>描述性格 → 预览生成 → 铸造上链</p>
 
       {step === "input" && (
-        <div className="space-y-6">
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div>
-            <label className="block text-sm font-medium mb-2">
-              Agent 名字
-            </label>
+            <label style={styles.label}>Agent 名字</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
               placeholder="例如：小毒舌、温暖先生、代码之神"
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 focus:border-purple-500 focus:outline-none transition"
+              style={styles.input}
             />
           </div>
-
           <div>
-            <label className="block text-sm font-medium mb-2">
-              性格描述
-            </label>
+            <label style={styles.label}>性格描述</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="描述你想要的 AI 性格，越详细越好...&#10;例如：一个毒舌但内心温暖的程序员，说话犀利但从不恶意伤人"
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+              placeholder="描述你想要的 AI 性格，越详细越好..."
               rows={4}
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 focus:border-purple-500 focus:outline-none transition resize-none"
+              style={styles.textarea}
             />
           </div>
-
           <button
             onClick={handleGenerate}
             disabled={!name || !description || isGenerating}
-            className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed py-3 rounded-lg font-semibold transition"
+            style={{
+              ...styles.btnPrimary,
+              opacity: !name || !description || isGenerating ? 0.4 : 1,
+              cursor: !name || !description || isGenerating ? "not-allowed" : "pointer",
+            }}
           >
-            {isGenerating ? "🔮 生成中..." : "✨ 生成人格预览"}
+            {isGenerating ? "生成中..." : "✨ 生成人格预览"}
           </button>
         </div>
       )}
 
       {step === "preview" && personality && (
-        <div className="space-y-6">
-          {/* 预览卡片 */}
-          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="text-6xl">{personality.avatar}</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Preview Card */}
+          <div style={styles.card}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
+              <div style={{ fontSize: 48 }}>{personality.avatar}</div>
               <div>
-                <h2 className="text-2xl font-bold">{personality.name}</h2>
-                <p className="text-gray-400">{personality.summary}</p>
+                <h2 style={{ fontSize: 20, fontWeight: 590, letterSpacing: "-0.24px" }}>
+                  {personality.name}
+                </h2>
+                <p style={{ fontSize: 14, color: "var(--text-tertiary)", marginTop: 4 }}>
+                  {personality.summary}
+                </p>
               </div>
             </div>
-
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
               {personality.traits.map((trait) => (
                 <span
                   key={trait}
-                  className="bg-purple-900/50 border border-purple-600 px-3 py-1 rounded-full text-sm"
+                  style={{
+                    padding: "2px 10px",
+                    borderRadius: 9999,
+                    border: "1px solid var(--border)",
+                    fontSize: 12,
+                    fontWeight: 510,
+                    color: "var(--text-secondary)",
+                  }}
                 >
                   {trait}
                 </span>
               ))}
             </div>
-
-            {/* 雷达图占位 */}
-            <div className="bg-gray-800 rounded-lg p-4">
-              <h3 className="text-sm font-medium mb-2">性格雷达</h3>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                {Object.entries(generateRadarFromDescription(description)).map(
-                  ([key, value]) => (
-                    <div key={key} className="text-xs">
-                      <div className="text-gray-400">
-                        {key === "humor"
-                          ? "幽默"
-                          : key === "kindness"
-                          ? "温柔"
-                          : key === "intelligence"
-                          ? "智慧"
-                          : key === "creativity"
-                          ? "创意"
-                          : key === "directness"
-                          ? "直接"
-                          : "耐心"}
-                      </div>
-                      <div className="text-purple-400 font-bold">{value}</div>
+            {/* Radar */}
+            <div
+              style={{
+                background: "rgba(0,0,0,0.3)",
+                borderRadius: 8,
+                padding: 16,
+                border: "1px solid var(--border-subtle)",
+              }}
+            >
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 12, fontWeight: 510 }}>
+                PERSONALITY RADAR
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                {Object.entries(generateRadarFromDescription(description)).map(([key, value]) => (
+                  <div key={key} style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>
+                      {key === "humor" ? "幽默" : key === "kindness" ? "温柔" : key === "intelligence" ? "智慧" : key === "creativity" ? "创意" : key === "directness" ? "直接" : "耐心"}
                     </div>
-                  )
-                )}
+                    <div
+                      style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: 16,
+                        fontWeight: 500,
+                        color: "var(--accent-bright)",
+                      }}
+                    >
+                      {value}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-900 border border-gray-700 rounded-xl p-4">
-            <h3 className="text-sm font-medium mb-2">系统 Prompt 预览</h3>
-            <pre className="text-xs text-gray-400 whitespace-pre-wrap overflow-auto max-h-40">
+          {/* Prompt Preview */}
+          <details>
+            <summary
+              style={{
+                fontSize: 12,
+                color: "var(--text-muted)",
+                cursor: "pointer",
+                padding: "8px 0",
+                fontWeight: 510,
+              }}
+            >
+              查看系统 Prompt
+            </summary>
+            <pre
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 12,
+                color: "var(--text-tertiary)",
+                background: "rgba(0,0,0,0.3)",
+                padding: 16,
+                borderRadius: 6,
+                border: "1px solid var(--border-subtle)",
+                overflow: "auto",
+                maxHeight: 160,
+                whiteSpace: "pre-wrap",
+                marginTop: 8,
+              }}
+            >
               {personality.fullPrompt}
             </pre>
-          </div>
+          </details>
 
-          <div className="flex gap-4">
-            <button
-              onClick={() => setStep("input")}
-              className="flex-1 border border-gray-600 hover:bg-gray-800 py-3 rounded-lg transition"
-            >
+          <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
+            <button onClick={() => setStep("input")} style={styles.btnGhost}>
               返回修改
             </button>
             <button
               onClick={handleMint}
               disabled={isPending || isConfirming}
-              className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 py-3 rounded-lg font-semibold transition"
+              style={{
+                ...styles.btnPrimary,
+                flex: 1,
+                opacity: isPending || isConfirming ? 0.4 : 1,
+              }}
             >
-              {isPending || isConfirming
-                ? "⏳ 铸造中..."
-                : "🧬 铸造 NFT (0.001 ETH)"}
+              {isPending || isConfirming ? "铸造中..." : "🧬 铸造 NFT (0.001 ETH)"}
             </button>
           </div>
         </div>
       )}
 
       {step === "minting" && (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="text-6xl mb-4 animate-pulse">🧬</div>
-          <h2 className="text-xl font-semibold mb-2">灵魂铸造中...</h2>
-          <p className="text-gray-400">请在钱包中确认交易</p>
+        <div style={{ textAlign: "center", padding: "80px 0" }}>
+          <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.6 }}>🧬</div>
+          <h2 style={{ fontSize: 18, fontWeight: 510, color: "var(--text-secondary)", marginBottom: 8 }}>
+            灵魂铸造中...
+          </h2>
+          <p style={{ fontSize: 13, color: "var(--text-muted)" }}>请在钱包中确认交易</p>
         </div>
       )}
     </div>
