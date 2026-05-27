@@ -1,23 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-
-:root {
-  --bg-deep: #08090a;
-  --bg-panel: #0f1011;
-  --bg-surface: #191a1b;
-  --bg-elevated: #28282c;
-  --text-primary: #f7f8f8;
-  --text-secondary: #d0d6e0;
-  --text-tertiary: #8a8f98;
-  --text-muted: #62666d;
-  --accent: #5e6ad2;
-  --accent-bright: #7170ff;
-  --accent-hover: #828fff;
-  --border: rgba(255,255,255,0.08);
-  --border-subtle: rgba(255,255,255,0.05);
-  --success: #10b981;
-}
 
 * {
   margin: 0;
@@ -26,21 +8,60 @@
 }
 
 body {
-  background: var(--bg-deep);
-  color: var(--text-primary);
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  font-feature-settings: 'cv01', 'ss03';
-  line-height: 1.5;
+  background: #030303;
+  color: #fff;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--bg-panel); }
-::-webkit-scrollbar-thumb { background: var(--bg-elevated); border-radius: 3px; }
+a { color: inherit; }
 
-/* Selection */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #030303; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
 ::selection {
-  background: rgba(113, 112, 255, 0.3);
-  color: var(--text-primary);
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+}
+
+/* Hover shine effect like web3privacy */
+.hover-shine {
+  position: relative;
+  overflow: hidden;
+}
+.hover-shine::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    to bottom right,
+    transparent 40%,
+    rgba(255,255,255,0.03) 50%,
+    transparent 60%
+  );
+  transform: rotate(-45deg);
+  transition: all 0.5s;
+  opacity: 0;
+}
+.hover-shine:hover::after {
+  opacity: 1;
+  animation: shine 0.5s ease;
+}
+
+@keyframes shine {
+  from { transform: translateX(-100%) rotate(-45deg); }
+  to { transform: translateX(100%) rotate(-45deg); }
+}
+
+/* Thin border like web3privacy */
+.thin-border {
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.thin-border:hover {
+  border-color: rgba(255,255,255,0.2);
 }

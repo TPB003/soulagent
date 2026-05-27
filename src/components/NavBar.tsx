@@ -2,87 +2,71 @@
 
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
+import { useState } from "react";
 
 export default function NavBar() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   return (
-    <nav
-      style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 100,
-        background: "rgba(15, 16, 17, 0.85)",
-        backdropFilter: "blur(16px)",
-        borderBottom: "1px solid rgba(255,255,255,0.05)",
-        padding: "0 2rem",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 1200,
-          margin: "0 auto",
+    <nav style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 50,
+      background: "rgba(3,3,3,0.9)",
+      backdropFilter: "blur(12px)",
+      borderBottom: "1px solid rgba(255,255,255,0.06)",
+    }}>
+      {/* Desktop */}
+      <div style={{
+        maxWidth: 1200,
+        margin: "0 auto",
+        padding: "12px 24px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}>
+        <Link href="/" style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          height: 56,
-        }}
-      >
-        <Link
-          href="/"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            textDecoration: "none",
-            color: "var(--text-primary)",
-          }}
-        >
-          <span style={{ fontSize: 20 }}>🧬</span>
-          <span
-            style={{
-              fontFamily: "'Inter', sans-serif",
-              fontWeight: 600,
-              fontSize: 15,
-              letterSpacing: "-0.3px",
-            }}
-          >
-            SoulAgent
-          </span>
+          gap: 8,
+          textDecoration: "none",
+          color: "#fff",
+          fontSize: 15,
+          fontWeight: 600,
+        }}>
+          <span>🧬</span>
+          <span>SoulAgent</span>
         </Link>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-          <Link
-            href="/mint"
-            style={{
-              color: "var(--text-tertiary)",
-              textDecoration: "none",
-              fontSize: 13,
-              fontWeight: 510,
-              letterSpacing: "-0.13px",
-              transition: "color 0.15s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-tertiary)")}
-          >
-            铸造
-          </Link>
-          <Link
-            href="/market"
-            style={{
-              color: "var(--text-tertiary)",
-              textDecoration: "none",
-              fontSize: 13,
-              fontWeight: 510,
-              letterSpacing: "-0.13px",
-              transition: "color 0.15s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-tertiary)")}
-          >
-            市场
-          </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <NavLink href="/mint" label="铸造" icon="🎨" />
+          <NavLink href="/market" label="市场" icon="🏪" />
           <ConnectButton />
         </div>
       </div>
     </nav>
+  );
+}
+
+function NavLink({ href, label, icon }: { href: string; label: string; icon: string }) {
+  return (
+    <Link href={href} style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      textDecoration: "none",
+      color: "rgba(255,255,255,0.6)",
+      fontSize: 13,
+      fontWeight: 500,
+      transition: "all 0.2s",
+    }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = "#fff"; e.currentTarget.style.transform = "scale(1.05)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.6)"; e.currentTarget.style.transform = "scale(1)"; }}
+    >
+      <span style={{ fontSize: 14 }}>{icon}</span>
+      <span>{label}</span>
+    </Link>
   );
 }
