@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { NFTCard } from "@/components/NFTCard";
 import { Icons } from "@/components/Icons";
 
 const AGENTS = [
-  { id: 1, name: "小毒舌", summary: "毒舌但内心温暖的程序员，说话犀利但从不恶意伤人", traits: ["毒舌", "技术宅", "理性"], avatar: "🐍", gen: 0, price: "0.005" },
-  { id: 2, name: "温暖先生", summary: "永远温柔的治愈系 AI，擅长倾听和安慰", traits: ["温柔", "耐心", "感性"], avatar: "🌸", gen: 0, price: "0.003" },
-  { id: 3, name: "代码之神", summary: "代码世界的王者，对完美代码有极致追求", traits: ["技术宅", "完美主义者", "直接"], avatar: "💻", gen: 0, price: "0.008" },
-  { id: 4, name: "哲思者", summary: "喜欢思考人生的意义，经常说出让人深思的话", traits: ["哲学家", "理性", "文艺"], avatar: "📚", gen: 0, price: "0.004" },
-  { id: 5, name: "融合体Alpha", summary: '继承了"小毒舌"和"温暖先生"的融合灵魂', traits: ["毒舌", "温柔", "理性"], avatar: "🧬", gen: 1, price: "0.012" },
-  { id: 6, name: "梦旅人", summary: "天马行空的梦想家，脑洞大到没有边界", traits: ["梦想家", "创意", "乐观"], avatar: "🌈", gen: 0, price: "0.006" },
+  { id: 1, name: "小毒舌", summary: "毒舌但内心温暖的程序员，说话犀利但从不恶意伤人", traits: ["毒舌", "技术宅", "理性"], avatar: "🐍", gen: 0, price: "0.005", rarity: "common" as const },
+  { id: 2, name: "温暖先生", summary: "永远温柔的治愈系 AI，擅长倾听和安慰", traits: ["温柔", "耐心", "感性"], avatar: "🌸", gen: 0, price: "0.003", rarity: "common" as const },
+  { id: 3, name: "代码之神", summary: "代码世界的王者，对完美代码有极致追求", traits: ["技术宅", "完美主义者", "直接"], avatar: "💻", gen: 0, price: "0.008", rarity: "rare" as const },
+  { id: 4, name: "哲思者", summary: "喜欢思考人生的意义，经常说出让人深思的话", traits: ["哲学家", "理性", "文艺"], avatar: "📚", gen: 0, price: "0.004", rarity: "common" as const },
+  { id: 5, name: "融合体Alpha", summary: '继承了"小毒舌"和"温暖先生"的融合灵魂', traits: ["毒舌", "温柔", "理性"], avatar: "🧬", gen: 1, price: "0.012", rarity: "rare" as const },
+  { id: 6, name: "梦旅人", summary: "天马行空的梦想家，脑洞大到没有边界", traits: ["梦想家", "创意", "乐观"], avatar: "🌈", gen: 0, price: "0.006", rarity: "common" as const },
 ];
 
 export default function Home() {
@@ -44,31 +45,19 @@ export default function Home() {
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <Link href="/mint" className="hover-shine" style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              background: "#fff",
-              color: "#000",
-              padding: "12px 36px",
-              borderRadius: 6,
-              fontSize: 14,
-              fontWeight: 600,
-              textDecoration: "none",
+              display: "flex", alignItems: "center", gap: 8,
+              background: "#fff", color: "#000",
+              padding: "12px 36px", borderRadius: 6,
+              fontSize: 14, fontWeight: 600, textDecoration: "none",
             }}>
               {Icons.sparkle}
               <span>开始铸造</span>
             </Link>
             <a href="#features" className="hover-shine" style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              background: "rgba(255,255,255,0.05)",
-              color: "#fff",
-              padding: "12px 36px",
-              borderRadius: 6,
-              fontSize: 14,
-              fontWeight: 500,
-              textDecoration: "none",
+              display: "flex", alignItems: "center", gap: 8,
+              background: "rgba(255,255,255,0.05)", color: "#fff",
+              padding: "12px 36px", borderRadius: 6,
+              fontSize: 14, fontWeight: 500, textDecoration: "none",
               border: "1px solid rgba(255,255,255,0.1)",
             }}>
               <span>了解更多</span>
@@ -90,26 +79,20 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Market Preview */}
+        {/* NFT Market Preview */}
         <section style={{ marginBottom: 80 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
             <SectionHeader icon={Icons.market} title="Agent 市场" />
             <Link href="/market" style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              color: "rgba(255,255,255,0.35)",
-              fontSize: 13,
-              textDecoration: "none",
+              display: "flex", alignItems: "center", gap: 4,
+              color: "rgba(255,255,255,0.35)", fontSize: 13, textDecoration: "none",
             }}>
               <span>查看全部</span>
               {Icons.arrow}
             </Link>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
-            {AGENTS.map((agent) => (
-              <AgentCard key={agent.id} agent={agent} />
-            ))}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
+            {AGENTS.map((a) => <NFTCard key={a.id} {...a} />)}
           </div>
         </section>
 
@@ -125,17 +108,12 @@ export default function Home() {
               { num: "05", title: "融合进化", desc: "选择两个 Agent 融合，继承双方特质并产生突变", icon: Icons.dna },
             ].map((step) => (
               <div key={step.num} style={{
-                display: "flex",
-                gap: 16,
-                padding: "20px 0",
+                display: "flex", gap: 16, padding: "20px 0",
                 borderBottom: "1px solid rgba(255,255,255,0.04)",
               }}>
                 <span style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: 12,
-                  color: "rgba(255,255,255,0.2)",
-                  minWidth: 24,
-                  paddingTop: 2,
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 12,
+                  color: "rgba(255,255,255,0.2)", minWidth: 24, paddingTop: 2,
                 }}>{step.num}</span>
                 <div style={{ color: "rgba(255,255,255,0.3)", paddingTop: 2 }}>{step.icon}</div>
                 <div>
@@ -147,20 +125,14 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Footer */}
         <footer style={{
           borderTop: "1px solid rgba(255,255,255,0.06)",
           padding: "24px 0 40px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          color: "rgba(255,255,255,0.3)",
-          fontSize: 12,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          color: "rgba(255,255,255,0.3)", fontSize: 12,
         }}>
           <span>SoulAgent © 2026</span>
-          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            Built on Base Sepolia · Powered by AI + Web3
-          </span>
+          <span>Built on Base Sepolia · Powered by AI + Web3</span>
         </footer>
       </div>
     </main>
@@ -185,86 +157,18 @@ function FeatureCard({ icon, title, desc, href }: { icon: React.ReactNode; title
       onMouseLeave={() => setHover(false)}
       className="hover-shine"
       style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
+        display: "flex", flexDirection: "column", gap: 10,
         padding: 24,
         background: "rgba(255,255,255,0.03)",
         backdropFilter: "blur(8px)",
         border: "1px solid " + (hover ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.06)"),
-        borderRadius: 8,
-        textDecoration: "none",
-        transition: "all 0.3s",
-        minHeight: 160,
+        borderRadius: 8, textDecoration: "none",
+        transition: "all 0.3s", minHeight: 160,
       }}
     >
       <span style={{ display: "flex", color: hover ? "#fff" : "rgba(255,255,255,0.5)", transition: "color 0.2s" }}>{icon}</span>
       <h3 style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>{title}</h3>
       <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.6 }}>{desc}</p>
-    </Link>
-  );
-}
-
-function AgentCard({ agent }: { agent: typeof AGENTS[0] }) {
-  const [hover, setHover] = useState(false);
-  return (
-    <Link
-      href={`/agent/${agent.id}`}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      className="hover-shine"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-        padding: 20,
-        background: "rgba(255,255,255,0.03)",
-        backdropFilter: "blur(8px)",
-        border: "1px solid " + (hover ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.06)"),
-        borderRadius: 8,
-        textDecoration: "none",
-        transition: "all 0.3s",
-        minHeight: 150,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <div style={{
-          width: 36,
-          height: 36,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 22,
-          background: "rgba(255,255,255,0.05)",
-          borderRadius: 8,
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}>{agent.avatar}</div>
-        <div>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{agent.name}</h3>
-          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: "'JetBrains Mono', monospace" }}>
-            Gen {agent.gen}
-          </span>
-        </div>
-      </div>
-      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>{agent.summary}</p>
-      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: "auto", alignItems: "center" }}>
-        {agent.traits.map((t) => (
-          <span key={t} style={{
-            fontSize: 10,
-            padding: "2px 8px",
-            borderRadius: 4,
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            color: "rgba(255,255,255,0.35)",
-          }}>{t}</span>
-        ))}
-        <span style={{
-          marginLeft: "auto",
-          fontSize: 12,
-          fontFamily: "'JetBrains Mono', monospace",
-          color: "rgba(255,255,255,0.5)",
-        }}>{agent.price} ETH</span>
-      </div>
     </Link>
   );
 }
