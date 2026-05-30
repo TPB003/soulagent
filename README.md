@@ -69,7 +69,7 @@ Sketch variants in `sketches/` — chose `001-linear-dark` over `001-hacker-term
 | Web3 | wagmi + RainbowKit | Wallet connection, contract interaction |
 | Contract | Solidity 0.8.x | ERC-721 NFT with mint, fuse, trade logic |
 | Chain | Base Sepolia | Low-cost testnet for demo and hackathon |
-| AI | Local rule engine (pluggable) | Personality generation from user input |
+| AI | Xiaomi MiMo (mimo-v2.5-pro) | Personality generation via /api/generate |
 
 ## Project structure
 
@@ -122,7 +122,7 @@ The smart contract is deployed on Base Sepolia.
 
 - [x] Deploy SoulAgent.sol to Base Sepolia
 - [x] Connect mint flow to live contract
-- [ ] Integrate real AI model (DeepSeek / Qwen / MiMo) for personality generation
+- [x] Integrate real AI model (Xiaomi MiMo) for personality generation
 - [ ] On-chain dialogue history
 - [ ] Agent evolution mechanics (experience-based trait growth)
 - [ ] Multi-chain support (OP Mainnet, Arbitrum)
