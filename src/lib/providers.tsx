@@ -8,13 +8,15 @@ import { useState } from "react";
 
 const config = getDefaultConfig({
   appName: "SoulAgent",
-  projectId: "soulagent-demo", // 黑客松用默认值即可
+  projectId: "soulagent-demo",
   chains: [baseSepolia],
   ssr: false,
 });
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: { queries: { retry: 2, staleTime: 30_000 } },
+  }));
 
   return (
     <WagmiProvider config={config}>

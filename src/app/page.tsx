@@ -5,6 +5,8 @@ import { useState } from "react";
 import { NFTCard } from "@/components/NFTCard";
 import { Icons } from "@/components/Icons";
 import { ShimmerText, Typewriter, StatCard } from "@/components/ui/effects";
+import { useTotalSupply } from "@/lib/hooks";
+import { BASESCAN_CONTRACT } from "@/lib/contract";
 
 /* ─────────────── Data ─────────────── */
 
@@ -39,6 +41,8 @@ function hoverStyle(e: React.MouseEvent<HTMLDivElement | HTMLAnchorElement>, on:
 
 export default function Home() {
   const [filter, setFilter] = useState<Filter>("全部");
+  const { data: totalSupplyRaw } = useTotalSupply();
+  const totalMinted = totalSupplyRaw ? Number(totalSupplyRaw) : 0;
 
   const filtered = ALL_AGENTS.filter((a) => {
     if (filter === "全部") return true;
@@ -102,9 +106,7 @@ export default function Home() {
             </p>
 
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 32, marginTop: 16 }}>
-              <StatCard label="已铸造" value={42} suffix="+" icon={Icons.mint} />
-              <StatCard label="融合次数" value={18} icon={Icons.dna} />
-              <StatCard label="活跃灵魂" value={36} icon={Icons.chat} />
+              <StatCard label="已铸造" value={totalMinted} suffix="" icon={Icons.mint} />
             </div>
 
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -276,7 +278,8 @@ export default function Home() {
           color: "var(--text-quaternary)", fontSize: 12,
         }}>
           <span>SoulAgent © 2026</span>
-          <span>Built on Base Sepolia · Powered by AI + Web3</span>
+          <a href={BASESCAN_CONTRACT()} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none", transition: "color 0.2s" }} onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent)"; }} onMouseLeave={(e) => { e.currentTarget.style.color = "inherit"; }}>合约 · BaseScan ↗</a>
+          <span>Powered by AI + Web3</span>
         </footer>
       </div>
     </main>
