@@ -1,13 +1,52 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 @import "../styles/animations.css";
+
+/* ════════════════════════════════════════════
+   Linear Dark Design Tokens
+   ════════════════════════════════════════════ */
+
+:root {
+  /* Backgrounds */
+  --bg-deep: #08090a;
+  --bg-panel: #0f1011;
+  --bg-surface: #191a1b;
+  --bg-elevated: #28282c;
+
+  /* Text */
+  --text-primary: #f7f8f8;
+  --text-secondary: #d0d6e0;
+  --text-tertiary: #8a8f98;
+  --text-quaternary: #62666d;
+
+  /* Brand */
+  --brand: #5e6ad2;
+  --accent: #7170ff;
+  --accent-hover: #828fff;
+
+  /* Status */
+  --green: #10b981;
+
+  /* Borders */
+  --border-subtle: rgba(255,255,255,0.05);
+  --border-default: rgba(255,255,255,0.08);
+
+  /* Cards */
+  --card-bg: rgba(255,255,255,0.02);
+  --card-bg-hover: rgba(255,255,255,0.04);
+}
+
+/* ════════════════════════════════════════════
+   Base Reset
+   ════════════════════════════════════════════ */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  background: #030303;
-  color: #fff;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: "cv01", "ss03";
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
 }
@@ -15,17 +54,15 @@ body {
 a { color: inherit; }
 
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #030303; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
 
-::selection { background: rgba(113,112,255,0.3); color: #fff; }
+::selection { background: rgba(94,106,210,0.3); color: #fff; }
 
-.thin-border { border: 1px solid rgba(255,255,255,0.06); }
-.thin-border:hover { border-color: rgba(255,255,255,0.2); }
+/* ════════════════════════════════════════════
+   Responsive Grids
+   ════════════════════════════════════════════ */
 
-/* ── Responsive grids ── */
-
-/* Hero: 2 cols → 1 col */
 .grid-hero {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -33,21 +70,18 @@ a { color: inherit; }
   align-items: center;
 }
 
-/* Features: 3 cols → 2 → 1 */
 .grid-features {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 }
 
-/* Steps: 5 cols → 3 → 2 → 1 */
 .grid-steps {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 12px;
 }
 
-/* Market: auto-fill 260px */
 .grid-market {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));

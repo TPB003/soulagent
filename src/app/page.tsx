@@ -20,14 +20,14 @@ const ALL_AGENTS = [
 const FILTERS = ["全部", "普通", "稀有", "Gen 0", "Gen 1"] as const;
 type Filter = typeof FILTERS[number];
 
-/* ─────────────── Style tokens ─────────────── */
+/* ─────────────── Style tokens (Linear Dark) ─────────────── */
 
 const s = {
   radius: 8,
-  border: "1px solid rgba(255,255,255,0.06)",
+  border: "1px solid rgba(255,255,255,0.05)",
   bg: "rgba(255,255,255,0.02)",
   bgHover: "rgba(255,255,255,0.04)",
-  borderHover: "1px solid rgba(255,255,255,0.12)",
+  borderHover: "1px solid rgba(255,255,255,0.1)",
 };
 
 function hoverStyle(e: React.MouseEvent<HTMLDivElement | HTMLAnchorElement>, on: boolean) {
@@ -50,24 +50,18 @@ export default function Home() {
   });
 
   return (
-    <main style={{ minHeight: "100vh", background: "#030303", position: "relative" }}>
+    <main style={{ minHeight: "100vh", background: "var(--bg-deep)", position: "relative" }}>
 
-      {/* 背景网格 */}
+      {/* Ambient indigo glow */}
       <div style={{
         position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none",
-        backgroundImage: `
-          linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)
-        `,
-        backgroundSize: "60px 60px",
-        maskImage: "radial-gradient(ellipse 70% 50% at 50% 0%, black 30%, transparent 70%)",
-        WebkitMaskImage: "radial-gradient(ellipse 70% 50% at 50% 0%, black 30%, transparent 70%)",
+        background: "radial-gradient(ellipse 50% 30% at 50% 0%, rgba(94,106,210,0.08) 0%, transparent 70%)",
       }} />
 
       <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
 
         {/* ════════════════════════════════════════════
-            1. HERO — 双栏布局
+            1. HERO — 双栏
             ════════════════════════════════════════════ */}
         <section className="grid-hero" style={{ paddingTop: 120, paddingBottom: 80 }}>
 
@@ -76,14 +70,13 @@ export default function Home() {
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 8,
               padding: "5px 12px", borderRadius: 9999,
-              border: "1px solid rgba(255,255,255,0.06)",
-              background: "rgba(255,255,255,0.02)",
-              fontSize: 11, color: "rgba(255,255,255,0.35)",
+              border: "var(--border-subtle)", background: s.bg,
+              fontSize: 11, color: "var(--text-tertiary)",
               marginBottom: 32, letterSpacing: "0.5px", textTransform: "uppercase",
             }}>
               <span style={{
                 width: 5, height: 5, borderRadius: "50%",
-                background: "#10b981",
+                background: "var(--green)",
                 boxShadow: "0 0 6px rgba(16,185,129,0.4)",
               }} />
               <span>Base Sepolia · Live</span>
@@ -91,17 +84,19 @@ export default function Home() {
 
             <h1 style={{
               fontSize: "clamp(36px, 5vw, 56px)",
-              fontWeight: 700, lineHeight: 1.1,
-              letterSpacing: "-2px", marginBottom: 20,
+              fontWeight: 510, lineHeight: 1.05,
+              letterSpacing: "-1.584px", marginBottom: 20,
+              color: "var(--text-primary)",
             }}>
               <ShimmerText>铸造你的</ShimmerText>
               <br />
-              <ShimmerText>AI 灵魂</ShimmerText>
+              <span style={{ color: "var(--accent)" }}><ShimmerText>AI 灵魂</ShimmerText></span>
             </h1>
 
             <p style={{
-              fontSize: 16, color: "rgba(255,255,255,0.4)",
-              lineHeight: 1.7, marginBottom: 12, minHeight: 48, maxWidth: 420,
+              fontSize: 18, color: "var(--text-tertiary)",
+              lineHeight: 1.6, marginBottom: 12, minHeight: 48, maxWidth: 420,
+              letterSpacing: "-0.165px",
             }}>
               <Typewriter text="每个 Agent 都是独一无二的数字灵魂。铸造、对话、融合，见证生命的进化。" speed={40} />
             </p>
@@ -115,21 +110,34 @@ export default function Home() {
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <Link href="/mint" style={{
                 display: "flex", alignItems: "center", gap: 8,
-                background: "#fff", color: "#000",
-                padding: "14px 36px", borderRadius: s.radius,
-                fontSize: 14, fontWeight: 600, textDecoration: "none",
-                boxShadow: "0 0 30px rgba(255,255,255,0.08)",
-              }}>
+                background: "var(--brand)", color: "#fff",
+                padding: "14px 36px", borderRadius: 6,
+                fontSize: 14, fontWeight: 590, textDecoration: "none",
+                transition: "all 0.2s",
+              }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-hover)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "var(--brand)"; }}
+              >
                 {Icons.sparkle}
                 <span>开始铸造</span>
               </Link>
               <Link href="/market" style={{
                 display: "flex", alignItems: "center", gap: 8,
-                background: s.bg, color: "#fff",
-                padding: "14px 36px", borderRadius: s.radius,
-                fontSize: 14, fontWeight: 500, textDecoration: "none",
-                border: s.border,
-              }}>
+                background: s.bg, color: "var(--text-secondary)",
+                padding: "14px 36px", borderRadius: 6,
+                fontSize: 14, fontWeight: 510, textDecoration: "none",
+                border: "var(--border-default)",
+                transition: "all 0.2s",
+              }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = s.bg;
+                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+                }}
+              >
                 <span>浏览市场</span>
                 {Icons.arrow}
               </Link>
@@ -166,12 +174,12 @@ export default function Home() {
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
                   <span style={{
                     fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
-                    color: "rgba(255,255,255,0.2)", minWidth: 20,
+                    color: "var(--text-quaternary)", minWidth: 20,
                   }}>{step.num}</span>
-                  <span style={{ color: "rgba(255,255,255,0.4)" }}>{step.icon}</span>
+                  <span style={{ color: "var(--accent)", opacity: 0.6 }}>{step.icon}</span>
                 </div>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 4 }}>{step.title}</h3>
-                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", lineHeight: 1.6 }}>{step.desc}</p>
+                <h3 style={{ fontSize: 14, fontWeight: 590, color: "var(--text-primary)", marginBottom: 4, letterSpacing: "-0.182px" }}>{step.title}</h3>
+                <p style={{ fontSize: 12, color: "var(--text-tertiary)", lineHeight: 1.6 }}>{step.desc}</p>
               </div>
             ))}
           </div>
@@ -200,9 +208,9 @@ export default function Home() {
                 onMouseEnter={(e) => hoverStyle(e, true)}
                 onMouseLeave={(e) => hoverStyle(e, false)}
               >
-                <span style={{ display: "flex", color: "rgba(255,255,255,0.4)" }}>{f.icon}</span>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{f.title}</h3>
-                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", lineHeight: 1.6 }}>{f.desc}</p>
+                <span style={{ display: "flex", color: "var(--accent)", opacity: 0.6 }}>{f.icon}</span>
+                <h3 style={{ fontSize: 14, fontWeight: 590, color: "var(--text-primary)", letterSpacing: "-0.182px" }}>{f.title}</h3>
+                <p style={{ fontSize: 12, color: "var(--text-tertiary)", lineHeight: 1.6 }}>{f.desc}</p>
               </Link>
             ))}
           </div>
@@ -216,8 +224,12 @@ export default function Home() {
             <SectionHeader icon={Icons.market} title="Agent 市场" />
             <Link href="/market" style={{
               display: "flex", alignItems: "center", gap: 4,
-              color: "rgba(255,255,255,0.3)", fontSize: 13, textDecoration: "none",
-            }}>
+              color: "var(--text-quaternary)", fontSize: 13, fontWeight: 510, textDecoration: "none",
+              transition: "color 0.2s",
+            }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-tertiary)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-quaternary)"; }}
+            >
               <span>查看全部</span>
               {Icons.arrow}
             </Link>
@@ -228,11 +240,12 @@ export default function Home() {
             {FILTERS.map((f) => (
               <button key={f} onClick={() => setFilter(f)} style={{
                 padding: "6px 16px", borderRadius: 6,
-                background: filter === f ? "rgba(255,255,255,0.1)" : s.bg,
-                border: filter === f ? "1px solid rgba(255,255,255,0.2)" : s.border,
-                color: filter === f ? "#fff" : "rgba(255,255,255,0.4)",
-                fontSize: 12, fontWeight: 500, cursor: "pointer",
+                background: filter === f ? "rgba(94,106,210,0.15)" : s.bg,
+                border: filter === f ? "1px solid rgba(94,106,210,0.25)" : s.border,
+                color: filter === f ? "var(--accent-hover)" : "var(--text-tertiary)",
+                fontSize: 12, fontWeight: 510, cursor: "pointer",
                 fontFamily: "'Inter', sans-serif",
+                fontFeatureSettings: "\"cv01\", \"ss03\"",
                 transition: "all 0.2s",
               }}>
                 {f}
@@ -248,7 +261,7 @@ export default function Home() {
           {filtered.length === 0 && (
             <div style={{
               textAlign: "center", padding: "60px 0",
-              color: "rgba(255,255,255,0.2)", fontSize: 14,
+              color: "var(--text-quaternary)", fontSize: 14,
             }}>
               暂无匹配的 Agent
             </div>
@@ -257,10 +270,10 @@ export default function Home() {
 
         {/* Footer */}
         <footer style={{
-          borderTop: "1px solid rgba(255,255,255,0.04)",
+          borderTop: "1px solid rgba(255,255,255,0.05)",
           padding: "24px 0 40px",
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          color: "rgba(255,255,255,0.2)", fontSize: 12,
+          color: "var(--text-quaternary)", fontSize: 12,
         }}>
           <span>SoulAgent © 2026</span>
           <span>Built on Base Sepolia · Powered by AI + Web3</span>
@@ -280,18 +293,20 @@ function HeroPreviewCard() {
       onMouseLeave={() => setHover(false)}
       style={{
         width: 320, borderRadius: 12, overflow: "hidden",
-        background: "linear-gradient(135deg, rgba(113,112,255,0.08) 0%, rgba(113,112,255,0.02) 100%)",
-        border: hover ? "1px solid rgba(113,112,255,0.35)" : "1px solid rgba(113,112,255,0.12)",
-        boxShadow: hover ? "0 0 40px rgba(113,112,255,0.15)" : "0 0 20px rgba(113,112,255,0.05)",
+        background: "rgba(255,255,255,0.03)",
+        border: hover ? "1px solid rgba(113,112,255,0.3)" : "1px solid rgba(255,255,255,0.08)",
+        boxShadow: hover
+          ? "0 0 40px rgba(94,106,210,0.1), rgba(0,0,0,0.2) 0px 0px 0px 1px"
+          : "rgba(0,0,0,0.2) 0px 0px 0px 1px",
         transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-        transform: hover ? "translateY(-6px) rotate(1deg)" : "translateY(0) rotate(0deg)",
+        transform: hover ? "translateY(-6px)" : "translateY(0)",
       }}
     >
       {/* 视觉区 */}
       <div style={{
         position: "relative", height: 200,
         display: "flex", alignItems: "center", justifyContent: "center",
-        background: "linear-gradient(135deg, rgba(113,112,255,0.06) 0%, rgba(0,0,0,0.4) 50%, rgba(113,112,255,0.04) 100%)",
+        background: "linear-gradient(135deg, rgba(94,106,210,0.08) 0%, rgba(0,0,0,0.3) 50%, rgba(94,106,210,0.04) 100%)",
       }}>
         <div style={{
           position: "absolute", inset: 0,
@@ -302,15 +317,16 @@ function HeroPreviewCard() {
           backgroundSize: "20px 20px",
           opacity: hover ? 0.8 : 0.3, transition: "opacity 0.4s",
         }} />
+        {/* Indigo glow orb */}
         <div style={{
           position: "absolute", width: 140, height: 140, borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(113,112,255,0.25) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(94,106,210,0.25) 0%, transparent 70%)",
           filter: "blur(20px)",
           opacity: hover ? 1 : 0.6, transition: "opacity 0.4s",
         }} />
         <div style={{
           position: "relative", zIndex: 1, fontSize: 64,
-          filter: hover ? "drop-shadow(0 0 24px rgba(255,255,255,0.3))" : "none",
+          filter: hover ? "drop-shadow(0 0 24px rgba(113,112,255,0.3))" : "none",
           transition: "filter 0.4s",
           transform: hover ? "scale(1.15)" : "scale(1)",
         }}>
@@ -319,8 +335,8 @@ function HeroPreviewCard() {
         <div style={{
           position: "absolute", top: 12, right: 12,
           padding: "3px 8px", borderRadius: 4,
-          background: "rgba(113,112,255,0.15)", border: "1px solid rgba(113,112,255,0.2)",
-          fontSize: 10, fontWeight: 600, color: "rgba(130,143,255,0.9)",
+          background: "rgba(94,106,210,0.2)", border: "1px solid rgba(94,106,210,0.3)",
+          fontSize: 10, fontWeight: 600, color: "var(--accent-hover)",
           fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.5px",
           textTransform: "uppercase" as const,
         }}>
@@ -329,47 +345,48 @@ function HeroPreviewCard() {
         <div style={{
           position: "absolute", top: 12, left: 12,
           padding: "3px 8px", borderRadius: 4,
-          background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.06)",
-          fontSize: 10, fontWeight: 500, color: "rgba(255,255,255,0.4)",
+          background: "rgba(0,0,0,0.5)", border: "var(--border-subtle)",
+          fontSize: 10, fontWeight: 500, color: "var(--text-quaternary)",
           fontFamily: "'JetBrains Mono', monospace",
         }}>
           Gen 1
         </div>
       </div>
 
-      <div style={{ height: 1, background: "linear-gradient(90deg, rgba(113,112,255,0.3), transparent)" }} />
+      <div style={{ height: 1, background: "linear-gradient(90deg, rgba(94,106,210,0.3), transparent)" }} />
 
       <div style={{ padding: "16px 16px 14px" }}>
-        <h3 style={{ fontSize: 15, fontWeight: 600, color: "#fff", marginBottom: 6, letterSpacing: "-0.2px" }}>
+        <h3 style={{ fontSize: 15, fontWeight: 590, color: "var(--text-primary)", marginBottom: 6, letterSpacing: "-0.24px" }}>
           融合体Alpha
         </h3>
-        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", lineHeight: 1.6, marginBottom: 12 }}>
+        <p style={{ fontSize: 12, color: "var(--text-tertiary)", lineHeight: 1.6, marginBottom: 12 }}>
           继承了小毒舌和温暖先生的融合灵魂
         </p>
         <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 14 }}>
           {["毒舌", "温柔", "理性"].map((t) => (
             <span key={t} style={{
               fontSize: 10, padding: "2px 8px", borderRadius: 4,
-              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)",
-              color: "rgba(255,255,255,0.35)",
+              background: "rgba(255,255,255,0.04)", border: "var(--border-subtle)",
+              color: "var(--text-tertiary)",
             }}>{t}</span>
           ))}
         </div>
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.04)",
+          paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.05)",
         }}>
           <div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginBottom: 2 }}>Price</div>
+            <div style={{ fontSize: 10, color: "var(--text-quaternary)", marginBottom: 2 }}>Price</div>
             <span style={{
-              fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 600, color: "#fff",
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 590,
+              color: "var(--text-primary)",
             }}>0.012 ETH</span>
           </div>
           <span style={{
             padding: "6px 14px", borderRadius: 6,
-            background: "linear-gradient(135deg, rgba(113,112,255,0.2), rgba(113,112,255,0.1))",
-            border: "1px solid rgba(113,112,255,0.3)",
-            color: "#fff", fontSize: 12, fontWeight: 500,
+            background: "rgba(94,106,210,0.15)", border: "1px solid rgba(94,106,210,0.25)",
+            color: "var(--accent-hover)", fontSize: 12, fontWeight: 510,
+            cursor: "pointer", transition: "all 0.2s",
           }}>
             购买
           </span>
@@ -384,8 +401,8 @@ function HeroPreviewCard() {
 function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
-      <span style={{ display: "flex", color: "rgba(255,255,255,0.4)" }}>{icon}</span>
-      <h2 style={{ fontSize: 20, fontWeight: 700, color: "#fff", letterSpacing: "-0.3px" }}>{title}</h2>
+      <span style={{ display: "flex", color: "var(--text-quaternary)" }}>{icon}</span>
+      <h2 style={{ fontSize: 20, fontWeight: 590, color: "var(--text-primary)", letterSpacing: "-0.24px" }}>{title}</h2>
     </div>
   );
 }

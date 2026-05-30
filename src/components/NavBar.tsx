@@ -12,9 +12,9 @@ export default function NavBar() {
       left: 0,
       right: 0,
       zIndex: 50,
-      background: "rgba(3,3,3,0.85)",
+      background: "rgba(8,9,10,0.85)",
       backdropFilter: "blur(16px)",
-      borderBottom: "1px solid rgba(255,255,255,0.06)",
+      borderBottom: "1px solid rgba(255,255,255,0.05)",
     }}>
       <div style={{
         maxWidth: 1200,
@@ -24,23 +24,25 @@ export default function NavBar() {
         alignItems: "center",
         justifyContent: "space-between",
       }}>
+        {/* Logo */}
         <Link href="/" style={{
           display: "flex",
           alignItems: "center",
           gap: 10,
           textDecoration: "none",
-          color: "#fff",
+          color: "var(--text-primary)",
           fontSize: 15,
-          fontWeight: 600,
+          fontWeight: 510,
           letterSpacing: "-0.3px",
         }}>
-          <span style={{ color: "rgba(255,255,255,0.8)" }}>{Icons.soul}</span>
+          <span style={{ color: "var(--accent)" }}>{Icons.soul}</span>
           <span>SoulAgent</span>
         </Link>
 
+        {/* Nav Links + Wallet */}
         <div className="nav-links" style={{ display: "flex", alignItems: "center", gap: 24 }}>
-          <NavLink href="/mint" label="铸造" icon={Icons.mint} />
-          <NavLink href="/market" label="市场" icon={Icons.market} />
+          <NavLink href="/mint" label="铸造" />
+          <NavLink href="/market" label="市场" />
           <ConnectButton />
         </div>
       </div>
@@ -48,31 +50,21 @@ export default function NavBar() {
   );
 }
 
-function NavLink({ href, label, icon }: { href: string; label: string; icon: React.ReactNode }) {
+function NavLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
       style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        textDecoration: "none",
-        color: "rgba(255,255,255,0.5)",
         fontSize: 13,
-        fontWeight: 500,
-        transition: "all 0.2s",
+        fontWeight: 510,
+        textDecoration: "none",
+        color: "var(--text-secondary)",
+        transition: "color 0.2s",
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.color = "#fff";
-        e.currentTarget.style.transform = "scale(1.05)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.color = "rgba(255,255,255,0.5)";
-        e.currentTarget.style.transform = "scale(1)";
-      }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-secondary)"; }}
     >
-      <span style={{ display: "flex", opacity: 0.7 }}>{icon}</span>
-      <span>{label}</span>
+      {label}
     </Link>
   );
 }
