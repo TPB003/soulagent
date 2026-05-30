@@ -41,6 +41,26 @@ Hero (title + preview card) → How it works → Core features → Agent market 
 
 - Responsive: desktop 2-col hero / 3-col features / auto-fill market; tablet 2-col; mobile single-col with nav simplified to logo + wallet.
 
+## Design system: Linear Dark
+
+Inspired by [Linear](https://linear.app)'s dark-mode-first design language.
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| Background | `#08090a` | Page canvas |
+| Brand | `#5e6ad2` / `#7170ff` | CTA buttons, accent icons, active states |
+| Text primary | `#f7f8f8` | Headlines, card names |
+| Text secondary | `#d0d6e0` | Nav links, button labels |
+| Text tertiary | `#8a8f98` | Body descriptions |
+| Text quaternary | `#62666d` | Metadata, timestamps |
+| Border | `rgba(255,255,255,0.05)` default, `0.08` standard | Cards, dividers |
+| Font | Inter with `cv01, ss03` OpenType features | All text |
+| Weight | 510 (signature), 590 (emphasis) | UI text, headings |
+| Letter-spacing | -1.584px at 56px, -0.24px at 20px | Display → body |
+| Radius | 6px buttons, 8px cards, 9999px pills | Component hierarchy |
+
+Sketch variants in `sketches/` — chose `001-linear-dark` over `001-hacker-terminal` (web3privacy pure-black achromatic).
+
 ## Tech stack
 
 | Layer | Technology | Purpose |
