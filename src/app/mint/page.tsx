@@ -116,7 +116,7 @@ export default function MintPage() {
             <ShimmerText>铸造成功</ShimmerText>
           </h2>
           <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 15, marginBottom: 8 }}>{personality.name} 已诞生</p>
-          <p style={{ fontFamily: "monospace", fontSize: 11, color: "rgba(255,255,255,0.2)", marginBottom: 32 }}>
+          <p style={{ fontFamily: "monospace", fontSize: 11, color: "var(--text-quaternary)", marginBottom: 32 }}>
             {hash?.slice(0, 20)}...
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
@@ -124,7 +124,7 @@ export default function MintPage() {
               style={{ background: "#fff", color: "#000", padding: "10px 24px", borderRadius: 6, fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer" }}>
               再铸造一个
             </button>
-            <a href="/market" style={{ background: "rgba(255,255,255,0.05)", color: "#fff", padding: "10px 24px", borderRadius: 6, fontSize: 13, fontWeight: 500, textDecoration: "none", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <a href="/market" style={{ background: "var(--glass-active)", color: "#fff", padding: "10px 24px", borderRadius: 6, fontSize: 13, fontWeight: 500, textDecoration: "none", border: "1px solid rgba(255,255,255,0.08)" }}>
               去市场看看
             </a>
           </div>
@@ -340,7 +340,7 @@ export default function MintPage() {
                     {(description.includes("、") ? description.split("、").slice(0, 3) : [description.slice(0, 4)]).map((t) => (
                       <span key={t} style={{
                         fontSize: 10, padding: "2px 8px", borderRadius: 4,
-                        background: "rgba(113,112,255,0.1)", border: "1px solid rgba(113,112,255,0.2)",
+                        background: "rgba(99,102,241,0.1)", border: "1px solid rgba(113,112,255,0.2)",
                         color: "rgba(130,143,255,0.8)",
                       }}>{t.trim().slice(0, 6)}</span>
                     ))}
@@ -400,7 +400,7 @@ export default function MintPage() {
                           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{labels[key]}</span>
                           <span style={{ fontSize: 11, fontFamily: "monospace", color: "rgba(113,112,255,0.8)" }}>{value}</span>
                         </div>
-                        <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)" }}>
+                        <div style={{ height: 4, borderRadius: 2, background: "var(--glass-active)" }}>
                           <div style={{ height: "100%", width: value + "%", borderRadius: 2, background: "linear-gradient(90deg, rgba(113,112,255,0.6), rgba(168,85,247,0.6))", transition: "width 0.5s" }} />
                         </div>
                       </div>

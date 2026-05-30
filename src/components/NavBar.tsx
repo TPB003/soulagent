@@ -9,8 +9,10 @@ export default function NavBar() {
   return (
     <nav style={{
       position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
-      background: "rgba(8,9,10,0.85)", backdropFilter: "blur(16px)",
-      borderBottom: "1px solid rgba(255,255,255,0.05)",
+      background: "rgba(3,3,3,0.7)",
+      backdropFilter: "blur(20px) saturate(1.2)",
+      WebkitBackdropFilter: "blur(20px) saturate(1.2)",
+      borderBottom: "1px solid var(--border-faint)",
     }}>
       <div style={{
         maxWidth: 1200, margin: "0 auto", padding: "12px 24px",
@@ -20,30 +22,51 @@ export default function NavBar() {
         <Link href="/" style={{
           display: "flex", alignItems: "center", gap: 10,
           textDecoration: "none", color: "var(--text-primary)",
-          fontSize: 15, fontWeight: 510, letterSpacing: "-0.3px",
+          fontSize: 15, fontWeight: 600, letterSpacing: "-0.4px",
         }}>
-          <span style={{ color: "var(--accent)" }}>{Icons.soul}</span>
+          <div style={{
+            width: 28, height: 28, borderRadius: 6,
+            background: "linear-gradient(135deg, var(--brand) 0%, var(--cyan) 100%)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 0 16px rgba(99,102,241,0.3)",
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 6v6l4 2"/>
+            </svg>
+          </div>
           <span>SoulAgent</span>
         </Link>
 
-        {/* Center — Network + Contract */}
-        <a href={BASESCAN_CONTRACT()} target="_blank" rel="noopener noreferrer" style={{
-          display: "inline-flex", alignItems: "center", gap: 8,
-          padding: "5px 12px", borderRadius: 9999,
-          border: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)",
-          fontSize: 11, color: "var(--text-tertiary)", letterSpacing: "0.5px",
-          textDecoration: "none", transition: "all 0.2s",
-        }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(94,106,210,0.3)"; e.currentTarget.style.color = "var(--accent)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)"; e.currentTarget.style.color = "var(--text-tertiary)"; }}
+        {/* Center — Chain badge */}
+        <a href={BASESCAN_CONTRACT()} target="_blank" rel="noopener noreferrer"
+          className="pill"
+          style={{ textDecoration: "none", transition: "all 0.2s", cursor: "pointer" }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "var(--border-accent)";
+            e.currentTarget.style.color = "var(--accent)";
+            e.currentTarget.style.boxShadow = "0 0 12px rgba(99,102,241,0.15)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "var(--border-subtle)";
+            e.currentTarget.style.color = "var(--text-tertiary)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
         >
-          <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--green)", boxShadow: "0 0 6px rgba(16,185,129,0.4)" }} />
-          <span>Base Sepolia · Contract ↗</span>
+          <span style={{
+            width: 6, height: 6, borderRadius: "50%",
+            background: "var(--green)",
+            boxShadow: "0 0 8px rgba(52,211,153,0.5)",
+            animation: "glow-pulse 2s ease-in-out infinite",
+          }} />
+          <span>Base Sepolia</span>
+          <span style={{ opacity: 0.5 }}>↗</span>
         </a>
 
         {/* Right — Nav + Wallet */}
-        <div className="nav-links" style={{ display: "flex", alignItems: "center", gap: 24 }}>
+        <div className="nav-links" style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <NavLink href="/mint" label="铸造" />
+          <NavLink href="/fuse" label="融合" />
           <NavLink href="/market" label="市场" />
           <ConnectButton />
         </div>
@@ -55,11 +78,16 @@ export default function NavBar() {
 function NavLink({ href, label }: { href: string; label: string }) {
   return (
     <Link href={href} style={{
-      fontSize: 13, fontWeight: 510, textDecoration: "none",
-      color: "var(--text-secondary)", transition: "color 0.2s",
+      fontSize: 13, fontWeight: 500, textDecoration: "none",
+      color: "var(--text-tertiary)", transition: "all 0.2s",
+      padding: "4px 0", position: "relative",
     }}
-      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-secondary)"; }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.color = "var(--text-primary)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.color = "var(--text-tertiary)";
+      }}
     >
       {label}
     </Link>

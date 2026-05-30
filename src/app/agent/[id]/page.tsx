@@ -275,7 +275,7 @@ export default function AgentDetailPage() {
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="说点什么..."
             style={{
-              flex: 1, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)",
+              flex: 1, background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-default)",
               borderRadius: 6, padding: "8px 12px", color: "var(--text-primary)", fontSize: 14, outline: "none",
               fontFamily: "'Inter', sans-serif",
             }}
