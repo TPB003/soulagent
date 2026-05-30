@@ -68,6 +68,7 @@ export default function NavBar() {
           <NavLink href="/mint" label="铸造" />
           <NavLink href="/fuse" label="融合" />
           <NavLink href="/market" label="市场" />
+          <NavLink href="/my-agents" label="我的" />
           <ConnectButton />
         </div>
       </div>

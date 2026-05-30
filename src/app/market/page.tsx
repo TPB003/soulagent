@@ -32,7 +32,7 @@ function OnChainAgentCard({ id }: { id: number }) {
       traits={["AI", gen > 0 ? "融合" : "初代", `Gen ${gen}`]}
       avatar={getAgentEmoji(agent.name)}
       gen={gen}
-      price={priceEth}
+      price={priceEth || "未在售"}
       rarity={rarity as "common" | "rare" | "legendary"}
     />
   );

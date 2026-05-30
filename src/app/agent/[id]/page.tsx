@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { useAccount } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { parseEther, formatEther } from "viem";
 import Link from "next/link";
 import { useAgent, useOwnerOf, useChildren } from "@/lib/hooks";
-import { getAgentEmoji, BASESCAN_NFT, BASESCAN_ADDR, SOUL_AGENT_ADDRESS, BASESCAN_CONTRACT, type OnChainAgent } from "@/lib/contract";
+import { getAgentEmoji, BASESCAN_NFT, BASESCAN_ADDR, SOUL_AGENT_ADDRESS, SOUL_AGENT_ABI, BASESCAN_CONTRACT, type OnChainAgent } from "@/lib/contract";
 
 interface Message { role: "user" | "agent"; content: string; timestamp: number; }
 
@@ -30,7 +31,7 @@ function saveEvo(id: string, count: number) {
 
 export default function AgentDetailPage() {
   const params = useParams();
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const id = params.id as string;
 
   // 链上数据
@@ -43,7 +44,11 @@ export default function AgentDetailPage() {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [evoCount, setEvoCount] = useState(0);
+  const [listPrice, setListPrice] = useState("");
+  const [showListForm, setShowListForm] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { writeContract, data: txData, isPending: isTxPending } = useWriteContract();
+  const { isLoading: isTxConfirming } = useWaitForTransactionReceipt({ hash: txData });
 
   // 加载历史
   useEffect(() => {
@@ -54,6 +59,8 @@ export default function AgentDetailPage() {
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   const agent = agentData as OnChainAgent | undefined;
+  const isOwner = address && ownerAddr && address.toLowerCase() === (ownerAddr as string).toLowerCase();
+  const isListed = agent && agent.price > 0;
   const agentName = agent?.name || `Agent #${id}`;
   const emoji = getAgentEmoji(agentName);
   const gen = agent ? Number(agent.generation) : 0;
@@ -65,6 +72,34 @@ export default function AgentDetailPage() {
   const evoLevel = evoCount >= 50 ? 3 : evoCount >= 20 ? 2 : evoCount >= 5 ? 1 : 0;
   const evoLabel = ["初始", "觉醒", "进化", "超进化"][evoLevel];
   const evoColor = ["var(--text-quaternary)", "var(--accent)", "#828fff", "#fbbf24"][evoLevel];
+
+  // 上架
+  const handleList = () => {
+    if (!listPrice || parseFloat(listPrice) <= 0) return;
+    writeContract({
+      address: SOUL_AGENT_ADDRESS, abi: SOUL_AGENT_ABI as any,
+      functionName: "listForSale",
+      args: [BigInt(id), parseEther(listPrice)],
+    });
+    setShowListForm(false);
+  };
+
+  // 下架
+  const handleDelist = () => {
+    writeContract({
+      address: SOUL_AGENT_ADDRESS, abi: SOUL_AGENT_ABI as any,
+      functionName: "delist", args: [BigInt(id)],
+    });
+  };
+
+  // 购买
+  const handleBuy = () => {
+    if (!agent || agent.price <= 0) return;
+    writeContract({
+      address: SOUL_AGENT_ADDRESS, abi: SOUL_AGENT_ABI as any,
+      functionName: "buyAgent", args: [BigInt(id)], value: agent.price,
+    });
+  };
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || isTyping) return;
@@ -180,19 +215,77 @@ export default function AgentDetailPage() {
             </div>
           )}
 
-          {/* Price + Actions */}
-          {priceEth && (
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 500, color: "var(--accent-hover)", textAlign: "center", marginBottom: 12 }}>
-              {priceEth} ETH
+          {/* Price + Actions — 根据是否是持有者显示不同 UI */}
+          {isOwner ? (
+            /* 持有者：上架/下架 */
+            <div style={{ marginBottom: 16 }}>
+              {isListed ? (
+                <>
+                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 600, color: "var(--accent)", textAlign: "center", marginBottom: 8 }}>
+                    {priceEth} ETH
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={handleDelist} disabled={isTxPending || isTxConfirming}
+                      className="btn-ghost" style={{ flex: 1, justifyContent: "center", fontSize: 13,
+                        color: "var(--red)", borderColor: "rgba(248,113,113,0.2)",
+                        background: "rgba(248,113,113,0.05)",
+                        opacity: isTxPending || isTxConfirming ? 0.4 : 1,
+                      }}>
+                      {isTxPending || isTxConfirming ? "处理中..." : "下架"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {showListForm ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <input type="number" value={listPrice} onChange={(e) => setListPrice(e.target.value)}
+                        placeholder="设置价格 (ETH)" step="0.001" min="0" className="input" style={{ fontSize: 13 }} />
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={handleList} disabled={isTxPending || isTxConfirming || !listPrice}
+                          className="btn-primary" style={{ flex: 1, justifyContent: "center", fontSize: 13,
+                            opacity: !listPrice ? 0.4 : 1,
+                          }}>
+                          {isTxPending ? "钱包确认..." : isTxConfirming ? "上架中..." : "确认上架"}
+                        </button>
+                        <button onClick={() => setShowListForm(false)}
+                          className="btn-ghost" style={{ fontSize: 13, padding: "8px 16px" }}>
+                          取消
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setShowListForm(true)}
+                      className="btn-primary" style={{ width: "100%", justifyContent: "center", fontSize: 13 }}>
+                      上架出售
+                    </button>
+                  )}
+                </>\>
+              )}
+            </div>
+          ) : (
+            /* 非持有者：购买或未在售 */
+            <div style={{ marginBottom: 16 }}>
+              {isListed ? (
+                <>
+                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 600, color: "var(--accent)", textAlign: "center", marginBottom: 8 }}>
+                    {priceEth} ETH
+                  </div>
+                  <button onClick={handleBuy} disabled={isTxPending || isTxConfirming}
+                    className="btn-primary" style={{ width: "100%", justifyContent: "center", fontSize: 13,
+                      opacity: isTxPending || isTxConfirming ? 0.4 : 1,
+                    }}>
+                    {isTxPending ? "钱包确认..." : isTxConfirming ? "购买中..." : "购买并使用"}
+                  </button>
+                </>
+              ) : (
+                <div className="card" style={{ padding: 12, textAlign: "center" }}>
+                  <p style={{ fontSize: 13, color: "var(--text-quaternary)" }}>未在售</p>
+                  <p style={{ fontSize: 11, color: "var(--text-quaternary)", marginTop: 4 }}>持有者尚未上架此 Agent</p>
+                </div>
+              )}
             </div>
           )}
-          <button style={{
-            width: "100%", background: "var(--brand)", color: "#fff",
-            padding: "8px 16px", borderRadius: 6, fontSize: 13, fontWeight: 510,
-            border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif",
-          }}>
-            {priceEth ? "购买" : "未在售"}
-          </button>
 
           {/* BaseScan Links */}
           <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
