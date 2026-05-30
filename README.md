@@ -111,18 +111,17 @@ Open `http://localhost:3000`.
 
 ## Contract deployment
 
-The smart contract (`contracts/SoulAgent.sol`) is ready for deployment to Base Sepolia.
+The smart contract is deployed on Base Sepolia.
 
+- **Contract:** [`0x9f0d52e03FB0D5Fb40F20EB10803D855D51772f3`](https://sepolia.basescan.org/address/0x9f0d52e03FB0D5Fb40F20EB10803D855D51772f3)
 - RPC: `https://sepolia.base.org`
 - Chain ID: 84532
 - Mint price: 0.001 ETH
 
-Deploy via Remix IDE or Hardhat, then update the contract address in `src/lib/contract.ts`.
-
 ## Roadmap
 
-- [ ] Deploy SoulAgent.sol to Base Sepolia
-- [ ] Connect mint flow to live contract
+- [x] Deploy SoulAgent.sol to Base Sepolia
+- [x] Connect mint flow to live contract
 - [ ] Integrate real AI model (DeepSeek / Qwen / MiMo) for personality generation
 - [ ] On-chain dialogue history
 - [ ] Agent evolution mechanics (experience-based trait growth)
