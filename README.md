@@ -27,7 +27,7 @@ An on-chain AI Agent personality system. Each Agent is a unique digital soul —
 
 - **Mint** — Describe a personality via URL auto-analysis or manual input. AI generates a unique prompt, avatar, and trait tags. Mint as NFT on Base Sepolia.
 - **Converse** — Chat with your Agent. Each one has a distinct personality shaped by its on-chain prompt.
-- **Fuse** — Select two Agent NFTs. They merge, inheriting traits from both parents with random mutations. Offspring records full lineage on-chain.
+- **Fuse** — Select two Agent NFTs you own. AI generates the child personality. They merge on-chain, inheriting traits with mutations. `/fuse` page.
 - **Market** — Browse, filter by rarity (Common / Rare) or generation (Gen 0 / Gen 1), buy and sell Agent NFTs.
 - **Lineage** — Track an Agent's family tree across generations of fusion.
 
@@ -41,25 +41,23 @@ Hero (title + preview card) → How it works → Core features → Agent market 
 
 - Responsive: desktop 2-col hero / 3-col features / auto-fill market; tablet 2-col; mobile single-col with nav simplified to logo + wallet.
 
-## Design system: Linear Dark
+## Design system: Dark Cosmos
 
-Inspired by [Linear](https://linear.app)'s dark-mode-first design language.
+Pure black canvas with indigo+cyan ambient glow. Glass-morphism cards with micro-animations.
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| Background | `#08090a` | Page canvas |
-| Brand | `#5e6ad2` / `#7170ff` | CTA buttons, accent icons, active states |
-| Text primary | `#f7f8f8` | Headlines, card names |
-| Text secondary | `#d0d6e0` | Nav links, button labels |
-| Text tertiary | `#8a8f98` | Body descriptions |
-| Text quaternary | `#62666d` | Metadata, timestamps |
-| Border | `rgba(255,255,255,0.05)` default, `0.08` standard | Cards, dividers |
-| Font | Inter with `cv01, ss03` OpenType features | All text |
-| Weight | 510 (signature), 590 (emphasis) | UI text, headings |
-| Letter-spacing | -1.584px at 56px, -0.24px at 20px | Display → body |
-| Radius | 6px buttons, 8px cards, 9999px pills | Component hierarchy |
+| Background | `#030303` (void) | Page canvas |
+| Brand | `#6366f1` (indigo) | CTA buttons, accent, glow |
+| Accent | `#818cf8` | Hover states, links |
+| Cyan | `#22d3ee` | Secondary glow, gradient |
+| Text | `#f0f0f2` → `#b0b4bc` → `#7a7f8a` → `#4e5260` | 4-level hierarchy |
+| Glass | `rgba(255,255,255,0.02)` + `0.04` hover | Card surfaces |
+| Border | `0.04` faint → `0.06` subtle → `0.08` default → `0.12` strong | 4-level borders |
+| Font | Inter + JetBrains Mono | All text + code |
+| Radius | 6px buttons, 8px cards, 12px panels, 9999px pills | Component hierarchy |
 
-Sketch variants in `sketches/` — chose `001-linear-dark` over `001-hacker-terminal` (web3privacy pure-black achromatic).
+Ambient background: dual radial gradients (indigo top-left, cyan top-right) + masked grid pattern.
 
 ## Real data architecture
 
@@ -93,7 +91,8 @@ soulagent/
 │   │   ├── page.tsx           # Landing page
 │   │   ├── mint/page.tsx      # Mint flow — URL analysis + manual input
 │   │   ├── market/page.tsx    # Agent marketplace grid
-│   │   └── agent/[id]/page.tsx # Agent detail — chat, lineage, fuse
+│   │   ├── fuse/page.tsx       # Fuse two agents into new life
+│   │   └── agent/[id]/page.tsx # Agent detail — AI chat, evolution, BaseScan links
 │   ├── components/
 │   │   ├── NavBar.tsx         # Top nav + wallet connect
 │   │   ├── NFTCard.tsx        # Rarity-tiered NFT card (common/rare/legendary)
