@@ -38,7 +38,7 @@ export default function NavBar() {
           <span>SoulAgent</span>
         </Link>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+        <div className="nav-links" style={{ display: "flex", alignItems: "center", gap: 24 }}>
           <NavLink href="/mint" label="铸造" icon={Icons.mint} />
           <NavLink href="/market" label="市场" icon={Icons.market} />
           <ConnectButton />
