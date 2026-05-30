@@ -59,6 +59,22 @@ Pure black canvas with indigo+cyan ambient glow. Glass-morphism cards with micro
 
 Ambient background: dual radial gradients (indigo top-left, cyan top-right) + masked grid pattern.
 
+## Marketplace
+
+Creators can list their agents for other users to buy and interact with.
+
+| Page | Who | What |
+|------|-----|------|
+| `/my-agents` | Creator | View owned agents, set price, list for sale, delist |
+| `/market` | Everyone | Browse all on-chain agents, see listing status |
+| `/agent/[id]` | Owner | List/delist agent, see chat history |
+| `/agent/[id]` | Visitor | Buy listed agent, chat with AI personality |
+
+Flow:
+```
+铸造 → 我的 Agent → 设置价格 → 上架 → 市场展示 → 用户购买 → 使用对话
+```
+
 ## Real data architecture
 
 All data comes from on-chain or AI — no fake placeholders.
@@ -92,6 +108,7 @@ soulagent/
 │   │   ├── mint/page.tsx      # Mint flow — URL analysis + manual input
 │   │   ├── market/page.tsx    # Agent marketplace grid
 │   │   ├── fuse/page.tsx       # Fuse two agents into new life
+│   │   ├── my-agents/page.tsx  # Creator dashboard — list, manage agents
 │   │   └── agent/[id]/page.tsx # Agent detail — AI chat, evolution, BaseScan links
 │   ├── components/
 │   │   ├── NavBar.tsx         # Top nav + wallet connect
