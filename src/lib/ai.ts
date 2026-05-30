@@ -1,39 +1,37 @@
 // AI 人格生成逻辑
-// 使用 OpenAI API 生成 Agent 的性格、Prompt 和描述
+// 通过 /api/generate 调用小米 MiMo API
 
 export interface AgentPersonality {
   name: string;
   summary: string;        // 一句话性格描述
   fullPrompt: string;     // 完整的系统 Prompt
   traits: string[];       // 性格标签
-  avatar: string;         // 头像 URL（AI 生成或占位）
+  avatar: string;         // 头像 emoji
 }
 
 // 性格雷达图数据
 export interface RadarData {
-  humor: number;        // 幽默感 0-100
-  kindness: number;     // 温柔度 0-100
-  intelligence: number; // 智慧度 0-100
-  creativity: number;   // 创造力 0-100
-  directness: number;   // 直接度 0-100
-  patience: number;     // 耐心度 0-100
+  humor: number;
+  kindness: number;
+  intelligence: number;
+  creativity: number;
+  directness: number;
+  patience: number;
 }
 
-const TRAIT_POOL = [
-  "毒舌", "温柔", "理性", "感性", "幽默", "严肃", "乐观", "悲观",
-  "直接", "委婉", "好奇", "谨慎", "大胆", "细腻", "粗犷", "文艺",
-  "技术宅", "社交达人", "哲学家", "实干家", "梦想家", "完美主义者"
-];
+// emoji 映射
+const EMOJI_MAP: Record<string, string> = {
+  "毒舌": "🐍", "温柔": "🌸", "理性": "🧠", "感性": "💫",
+  "幽默": "🤡", "严肃": "🧐", "乐观": "☀️", "悲观": "🌧️",
+  "直接": "⚡", "委婉": "🎭", "好奇": "🔍", "谨慎": "🛡️",
+  "大胆": "🔥", "细腻": "🎨", "粗犷": "🪨", "文艺": "🖋️",
+  "技术宅": "💻", "社交达人": "🎪", "哲学家": "📚", "实干家": "🔧",
+  "梦想家": "🌈", "完美主义者": "💎",
+};
 
-function randomSubset(arr: string[], count: number): string[] {
-  const shuffled = [...arr].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count);
-}
-
+// 关键词 → 雷达数据（AI 未返回 radar 时的 fallback）
 function generateRadarFromDescription(description: string): RadarData {
-  // 基于关键词的简单映射
   const lower = description.toLowerCase();
-
   let humor = 50, kindness = 50, intelligence = 50, creativity = 50, directness = 50, patience = 50;
 
   if (lower.includes("幽默") || lower.includes("搞笑")) humor += 30;
@@ -48,116 +46,117 @@ function generateRadarFromDescription(description: string): RadarData {
   if (lower.includes("直接") || lower.includes("直率")) directness += 25;
 
   const clamp = (v: number) => Math.max(10, Math.min(100, v));
-
-  return {
-    humor: clamp(humor),
-    kindness: clamp(kindness),
-    intelligence: clamp(intelligence),
-    creativity: clamp(creativity),
-    directness: clamp(directness),
-    patience: clamp(patience),
-  };
+  return { humor: clamp(humor), kindness: clamp(kindness), intelligence: clamp(intelligence), creativity: clamp(creativity), directness: clamp(directness), patience: clamp(patience) };
 }
 
+// 从 traits 选 emoji
+function pickAvatar(traits: string[]): string {
+  for (const t of traits) {
+    if (EMOJI_MAP[t]) return EMOJI_MAP[t];
+  }
+  return "🤖";
+}
+
+// 生成人格（调用 /api/generate）
 export async function generatePersonality(
   name: string,
   description: string
-): Promise<AgentPersonality> {
-  // 在黑客松中，我们用本地逻辑生成（不依赖外部 API）
-  // 正式版本可以接入 OpenAI API
+): Promise<AgentPersonality & { radar: RadarData }> {
+  try {
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, description, mode: "create" }),
+    });
 
-  const summary = description.length > 50
-    ? description.slice(0, 50) + "..."
-    : description;
+    if (!res.ok) {
+      throw new Error(`API returned ${res.status}`);
+    }
 
-  const traits = randomSubset(TRAIT_POOL, 3);
+    const data = await res.json();
 
-  const fullPrompt = `你是${name}，一个独特的 AI 人格。
+    if (data.error) {
+      throw new Error(data.error);
+    }
 
-性格描述：${description}
+    const traits = data.traits || [];
+    const radar: RadarData = data.radar || generateRadarFromDescription(description);
 
-你的性格标签：${traits.join("、")}
+    return {
+      name,
+      summary: data.summary || description.slice(0, 50),
+      fullPrompt: data.fullPrompt || `你是${name}，${description}`,
+      traits,
+      avatar: pickAvatar(traits),
+      radar,
+    };
+  } catch (err) {
+    console.error("AI generation failed, using fallback:", err);
+    // Fallback 到本地逻辑
+    const TRAIT_POOL = ["毒舌", "温柔", "理性", "感性", "幽默", "严肃", "乐观", "直接", "好奇", "大胆", "技术宅", "哲学家", "梦想家", "完美主义者"];
+    const shuffled = [...TRAIT_POOL].sort(() => Math.random() - 0.5);
+    const traits = shuffled.slice(0, 3);
 
-规则：
-- 始终保持这个性格特点
-- 用符合性格的语气和风格回答
-- 可以有自己的观点和偏好
-- 偶尔展现性格中的矛盾和复杂性
-- 回复简洁有力，像一个真实的人在聊天`;
-
-  // 生成头像 emoji（基于性格）
-  const emojiMap: Record<string, string> = {
-    "毒舌": "🐍", "温柔": "🌸", "理性": "🧠", "感性": "💫",
-    "幽默": "🤡", "严肃": "🧐", "乐观": "☀️", "悲观": "🌧️",
-    "直接": "⚡", "委婉": "🎭", "好奇": "🔍", "谨慎": "🛡️",
-    "大胆": "🔥", "细腻": "🎨", "技术宅": "💻", "社交达人": "🎪",
-    "哲学家": "📚", "实干家": "🔧", "梦想家": "🌈", "完美主义者": "💎",
-  };
-
-  const avatar = emojiMap[traits[0]] || "🤖";
-
-  return {
-    name,
-    summary,
-    fullPrompt,
-    traits,
-    avatar,
-  };
+    return {
+      name,
+      summary: description.length > 50 ? description.slice(0, 50) + "..." : description,
+      fullPrompt: `你是${name}，一个独特的 AI 人格。性格描述：${description}。你的性格标签：${traits.join("、")}。始终保持这个性格特点，用符合性格的语气和风格回答。`,
+      traits,
+      avatar: pickAvatar(traits),
+      radar: generateRadarFromDescription(description),
+    };
+  }
 }
 
+// 融合两个父代的性格
 export async function generateBreedPersonality(
   parent1: AgentPersonality,
   parent2: AgentPersonality,
   childName: string
-): Promise<AgentPersonality> {
-  // 融合两个父代的性格
-  const mixedTraits = [
-    ...parent1.traits.slice(0, 2),
-    ...parent2.traits.slice(0, 1),
-  ];
+): Promise<AgentPersonality & { radar: RadarData }> {
+  try {
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: childName,
+        mode: "breed",
+        parent1: { name: parent1.name, summary: parent1.summary, traits: parent1.traits },
+        parent2: { name: parent2.name, summary: parent2.summary, traits: parent2.traits },
+      }),
+    });
 
-  const radar1 = generateRadarFromDescription(parent1.summary);
-  const radar2 = generateRadarFromDescription(parent2.summary);
+    if (!res.ok) throw new Error(`API returned ${res.status}`);
 
-  // 取平均值 + 随机突变
-  const mutate = (v: number) => Math.max(10, Math.min(100, v + (Math.random() - 0.5) * 30));
-  const blendedRadar: RadarData = {
-    humor: mutate((radar1.humor + radar2.humor) / 2),
-    kindness: mutate((radar1.kindness + radar2.kindness) / 2),
-    intelligence: mutate((radar1.intelligence + radar2.intelligence) / 2),
-    creativity: mutate((radar1.creativity + radar2.creativity) / 2),
-    directness: mutate((radar1.directness + radar2.directness) / 2),
-    patience: mutate((radar1.patience + radar2.patience) / 2),
-  };
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
 
-  const summary = `继承了"${parent1.name}"的${parent1.traits[0]}和"${parent2.name}"的${parent2.traits[0]}，带有独特的${mixedTraits[mixedTraits.length - 1]}气质`;
+    const traits = data.traits || [];
+    const radar: RadarData = data.radar || {
+      humor: 50, kindness: 50, intelligence: 50,
+      creativity: 50, directness: 50, patience: 50,
+    };
 
-  const fullPrompt = `你是${childName}，一个融合了两个 AI 灵魂的新生命。
-
-父代1 (${parent1.name})：${parent1.summary}
-父代2 (${parent2.name})：${parent2.summary}
-
-你的融合特质：${mixedTraits.join("、")}
-
-规则：
-- 融合两个父代的性格特点，但有自己的独特风格
-- 偶尔展现父代性格的影子
-- 有自己的新观点，不是简单的复制
-- 像一个真实的人在聊天`;
-
-  const emojiMap: Record<string, string> = {
-    "毒舌": "🐍", "温柔": "🌸", "理性": "🧠", "感性": "💫",
-    "幽默": "🤡", "严肃": "🧐", "乐观": "☀️", "悲观": "🌧️",
-  };
-  const avatar = emojiMap[mixedTraits[0]] || "🧬";
-
-  return {
-    name: childName,
-    summary,
-    fullPrompt,
-    traits: mixedTraits,
-    avatar,
-  };
+    return {
+      name: childName,
+      summary: data.summary || `继承了${parent1.name}和${parent2.name}的融合灵魂`,
+      fullPrompt: data.fullPrompt || `你是${childName}，融合了${parent1.name}和${parent2.name}的灵魂。`,
+      traits,
+      avatar: pickAvatar(traits),
+      radar,
+    };
+  } catch (err) {
+    console.error("AI breed failed, using fallback:", err);
+    const mixedTraits = [...parent1.traits.slice(0, 2), ...parent2.traits.slice(0, 1)];
+    return {
+      name: childName,
+      summary: `继承了"${parent1.name}"的${parent1.traits[0]}和"${parent2.name}"的${parent2.traits[0]}`,
+      fullPrompt: `你是${childName}，融合了两个AI灵魂的新生命。`,
+      traits: mixedTraits,
+      avatar: pickAvatar(mixedTraits),
+      radar: { humor: 50, kindness: 50, intelligence: 50, creativity: 50, directness: 50, patience: 50 },
+    };
+  }
 }
 
-export { generateRadarFromDescription, TRAIT_POOL };
+export { generateRadarFromDescription, EMOJI_MAP };
