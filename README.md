@@ -61,6 +61,17 @@ Inspired by [Linear](https://linear.app)'s dark-mode-first design language.
 
 Sketch variants in `sketches/` — chose `001-linear-dark` over `001-hacker-terminal` (web3privacy pure-black achromatic).
 
+## Real data architecture
+
+All data comes from on-chain or AI — no fake placeholders.
+
+- **Homepage stats**: `totalSupply()` read directly from contract via wagmi
+- **Agent detail**: `agents(id)` for on-chain metadata, `/api/chat` for MiMo-powered dialogue
+- **Market**: contract read calls per token ID
+- **Evolution**: localStorage tracks dialogue count → 4 levels (初始/觉醒/进化/超进化)
+- **BaseScan links**: NavBar contract badge, agent detail NFT/owner/creator links
+- **Dialogue history**: localStorage (100 messages per agent), with clear button
+
 ## Tech stack
 
 | Layer | Technology | Purpose |
@@ -90,9 +101,13 @@ soulagent/
 │   │   ├── Icons.tsx          # Custom SVG icon system
 │   │   └── ui/effects.tsx     # ShimmerText, GlowCard, ParticleField, etc.
 │   └── lib/
-│       ├── ai.ts              # Personality generation engine
-│       ├── contract.ts        # ABI + contract address
+│       ├── ai.ts              # Personality generation (MiMo API)
+│       ├── contract.ts        # ABI, address, BaseScan helpers
+│       ├── hooks.ts           # wagmi hooks: useAgent, useTotalSupply
 │       └── providers.tsx      # wagmi + RainbowKit config
+├── src/app/api/
+│   ├── generate/route.ts      # POST /api/generate — AI personality
+│   └── chat/route.ts          # POST /api/chat — AI dialogue
 ├── public/
 ├── README.md
 └── package.json
@@ -123,9 +138,9 @@ The smart contract is deployed on Base Sepolia.
 - [x] Deploy SoulAgent.sol to Base Sepolia
 - [x] Connect mint flow to live contract
 - [x] Integrate real AI model (Xiaomi MiMo) for personality generation
-- [ ] On-chain dialogue history
-- [ ] Agent evolution mechanics (experience-based trait growth)
-- [ ] Multi-chain support (OP Mainnet, Arbitrum)
+- [x] Agent dialogue via AI (MiMo-powered /api/chat)
+- [x] Agent evolution (dialogue count → evolution levels)
+- [x] Real on-chain data + BaseScan links throughout
 
 ## License
 
