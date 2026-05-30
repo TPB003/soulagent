@@ -135,7 +135,7 @@ export const SOUL_AGENT_ABI = [
 ] as const;
 
 // ⚠️ 部署后替换
-export const SOUL_AGENT_ADDRESS = "0x0000000000000000000000000000000000000000" as `0x${string}`;
+export const SOUL_AGENT_ADDRESS = "0x9f0d52e03FB0D5Fb40F20EB10803D855D51772f3" as `0x${string}`;
 
 // Base Sepolia 测试网
 export const TARGET_CHAIN = {
