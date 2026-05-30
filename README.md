@@ -28,8 +28,18 @@ An on-chain AI Agent personality system. Each Agent is a unique digital soul —
 - **Mint** — Describe a personality via URL auto-analysis or manual input. AI generates a unique prompt, avatar, and trait tags. Mint as NFT on Base Sepolia.
 - **Converse** — Chat with your Agent. Each one has a distinct personality shaped by its on-chain prompt.
 - **Fuse** — Select two Agent NFTs. They merge, inheriting traits from both parents with random mutations. Offspring records full lineage on-chain.
-- **Market** — Browse, filter by rarity (Common / Rare / Legendary), buy and sell Agent NFTs.
+- **Market** — Browse, filter by rarity (Common / Rare) or generation (Gen 0 / Gen 1), buy and sell Agent NFTs.
 - **Lineage** — Track an Agent's family tree across generations of fusion.
+
+## Homepage
+
+Dual-column hero with live NFT preview card. Content flow:
+
+```
+Hero (title + preview card) → How it works → Core features → Agent market (with filters)
+```
+
+- Responsive: desktop 2-col hero / 3-col features / auto-fill market; tablet 2-col; mobile single-col with nav simplified to logo + wallet.
 
 ## Tech stack
 
