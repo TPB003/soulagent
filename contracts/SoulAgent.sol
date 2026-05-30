@@ -122,7 +122,7 @@ contract SoulAgent is ERC721, ERC721URIStorage, ERC721Enumerable, Ownable, Reent
 
         address seller = _ownerOf(tokenId);
         agent.price = 0;
-        _transfer(seller, tokenId, msg.sender);
+        _transfer(seller, seller, tokenId);
 
         payable(seller).transfer(msg.value);
         emit AgentSold(tokenId, seller, msg.sender, msg.value);
@@ -136,7 +136,7 @@ contract SoulAgent is ERC721, ERC721URIStorage, ERC721Enumerable, Ownable, Reent
         return agents[tokenId];
     }
 
-    function totalSupply() public view override(ERC721, ERC721Enumerable) returns (uint256) {
+    function totalSupply() public view override(ERC721Enumerable) returns (uint256) {
         return _nextTokenId - 1;
     }
 
