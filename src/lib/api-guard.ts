@@ -9,6 +9,7 @@
 // on this site pass it with no extra click, but any script can spoof Origin.
 // The controls that actually protect the API key are the rate limit, the
 // chat route building its own system prompt, and generate input/output limits.
+// The rate-limit address comes only from a platform- or proxy-owned header.
 
 import {
   API_CHAT_MESSAGE_MAX,
@@ -85,9 +86,56 @@ export function limitConfigFor(bucket: "chat" | "generate"): LimitConfig {
   };
 }
 
-export function clientAddress(headers: { realIp: string | null; forwardedFor: string | null }): string {
-  const candidate = (headers.realIp || headers.forwardedFor || "").split(",")[0]?.trim() || "";
-  if (/^[0-9a-fA-F:.]+$/.test(candidate) && candidate.length <= 64) return candidate;
+export type ProxyIpMode = "off" | "vercel" | "forwarded-for" | "x-real-ip";
+
+// Forwarding headers are client-controlled unless the platform replaces them.
+// Vercel sets VERCEL=1 and sends x-vercel-forwarded-for. Anywhere else, per-IP
+// limits stay off until TRUST_PROXY_HEADERS=1, and X-Real-IP is used only when
+// TRUST_PROXY_IP_HEADER=x-real-ip says the proxy overwrites that header.
+export function proxyIpMode(env: {
+  TRUST_PROXY_HEADERS?: string;
+  TRUST_PROXY_IP_HEADER?: string;
+  VERCEL?: string;
+} = {
+  TRUST_PROXY_HEADERS: process.env.TRUST_PROXY_HEADERS,
+  TRUST_PROXY_IP_HEADER: process.env.TRUST_PROXY_IP_HEADER,
+  VERCEL: process.env.VERCEL,
+}): ProxyIpMode {
+  const flag = env.TRUST_PROXY_HEADERS?.trim().toLowerCase();
+  const header = env.TRUST_PROXY_IP_HEADER?.trim().toLowerCase();
+  if (flag === "0" || flag === "false" || flag === "no") return "off";
+  if (flag === "1" || flag === "true" || flag === "yes") {
+    return header === "x-real-ip" ? "x-real-ip" : "forwarded-for";
+  }
+  if (env.VERCEL === "1") return "vercel";
+  return "off";
+}
+
+function isIp(value: string): boolean {
+  return value.length <= 64 && /^[0-9a-fA-F:.]+$/.test(value);
+}
+
+function lastIp(value: string | null): string | null {
+  if (!value) return null;
+  const parts = value.split(",").map((part) => part.trim()).filter(Boolean);
+  const candidate = parts[parts.length - 1];
+  return candidate && isIp(candidate) ? candidate : null;
+}
+
+function singleIp(value: string | null): string | null {
+  if (!value) return null;
+  const candidate = value.trim();
+  if (!candidate || candidate.includes(",")) return null;
+  return isIp(candidate) ? candidate : null;
+}
+
+export function clientAddress(
+  headers: { vercelForwardedFor: string | null; forwardedFor: string | null; realIp: string | null },
+  mode: ProxyIpMode = proxyIpMode(),
+): string {
+  if (mode === "vercel") return lastIp(headers.vercelForwardedFor) ?? "unknown";
+  if (mode === "forwarded-for") return lastIp(headers.forwardedFor) ?? "unknown";
+  if (mode === "x-real-ip") return singleIp(headers.realIp) ?? "unknown";
   return "unknown";
 }
 

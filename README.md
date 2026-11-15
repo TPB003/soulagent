@@ -161,8 +161,10 @@ Copy `.env.example` to `.env.local`. `XIAOMI_API_KEY` stays on the server (do no
 | `UPSTASH_REDIS_REST_URL` | no | Upstash Redis REST URL for a shared rate-limit counter |
 | `UPSTASH_REDIS_REST_TOKEN` | no | Upstash Redis REST token |
 | `KV_REST_API_URL` / `KV_REST_API_TOKEN` | no | Vercel KV aliases, used when the Upstash pair is unset |
+| `TRUST_PROXY_HEADERS` | no | `1` to rate-limit by the last `X-Forwarded-For` hop. Unset on Vercel uses `x-vercel-forwarded-for`. `0` forces one shared bucket |
+| `TRUST_PROXY_IP_HEADER` | no | Set to `x-real-ip` together with `TRUST_PROXY_HEADERS=1` only when the proxy overwrites that header |
 
-`/api/chat` and `/api/generate` rate-limit by IP. When the Upstash (or Vercel KV) variables are set, counters live in Redis so they hold across serverless instances. When they are unset, each instance keeps an in-memory window. That fallback is safe (it still limits a hot instance) but it resets on a cold start and is not shared, so set Upstash before a public deployment.
+`/api/chat` and `/api/generate` rate-limit by client address. On Vercel the address is the platform's `x-vercel-forwarded-for` value (Vercel sets `VERCEL=1` and replaces that header). Off Vercel, forwarding headers are ignored and every caller shares one bucket, because `X-Real-IP` and `X-Forwarded-For` are otherwise chosen by the client. Set `TRUST_PROXY_HEADERS=1` only when your own proxy appends the address it saw; the limiter then uses the last hop, not a caller-supplied `X-Real-IP`. When the Upstash (or Vercel KV) variables are set, counters live in Redis so they hold across serverless instances. When they are unset, each instance keeps an in-memory window. That fallback still limits a hot instance, but it resets on a cold start and is not shared, so set Upstash before a public deployment.
 
 `API_ABUSE_GATE=origin` requires the `Origin` host (or, if `Origin` is missing, the `Referer` host) to match this deployment's `Host` / `X-Forwarded-Host`, or to be listed in `ALLOWED_ORIGINS`. The mint, chat, and fuse pages send same-origin requests, so this does not add a wallet popup. It is not authentication: a script can set `Origin` itself. A per-message wallet signature would tie spend to an address, but it would interrupt every reply unless a separate login session were added. The gate is off when `API_ABUSE_GATE=off`.
 

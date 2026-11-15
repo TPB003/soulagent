@@ -114,8 +114,9 @@ export async function POST(req: NextRequest) {
     }
 
     const ip = clientAddress({
-      realIp: req.headers.get("x-real-ip"),
+      vercelForwardedFor: req.headers.get("x-vercel-forwarded-for"),
       forwardedFor: req.headers.get("x-forwarded-for"),
+      realIp: req.headers.get("x-real-ip"),
     });
     const limit = await takeRateLimit(ip, "generate");
     if (!limit.ok) return apiJson({ error: "rate_limited" }, 429, rateHeaders(limit));

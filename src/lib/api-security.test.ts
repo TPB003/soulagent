@@ -4,6 +4,7 @@ import { TRAIT_SET, TRAIT_VOCAB } from "./api-limits";
 import {
   abuseGateDecision,
   clientAddress,
+  proxyIpMode,
   extractAssistantText,
   limitConfigFor,
   parseModelJson,
@@ -302,10 +303,33 @@ describe("rate limit", () => {
 });
 
 describe("client address", () => {
-  it("uses the platform IP and rejects junk", () => {
-    assert.equal(clientAddress({ realIp: "203.0.113.8, 10.0.0.1", forwardedFor: "1.2.3.4" }), "203.0.113.8");
-    assert.equal(clientAddress({ realIp: null, forwardedFor: "2001:db8::1" }), "2001:db8::1");
-    assert.equal(clientAddress({ realIp: "not an ip", forwardedFor: null }), "unknown");
+  const headers = {
+    vercelForwardedFor: "198.51.100.1, 203.0.113.50",
+    forwardedFor: "198.51.100.2, 203.0.113.60",
+    realIp: "198.51.100.9",
+  };
+
+  it("ignores caller-supplied forwarding headers unless a proxy mode is on", () => {
+    assert.equal(clientAddress(headers, "off"), "unknown");
+    assert.equal(clientAddress({ ...headers, realIp: "203.0.113.8", forwardedFor: "1.2.3.4" }, "off"), "unknown");
+  });
+
+  it("uses the last forwarded hop and does not prefer X-Real-IP", () => {
+    assert.equal(clientAddress(headers, "vercel"), "203.0.113.50");
+    assert.equal(clientAddress(headers, "forwarded-for"), "203.0.113.60");
+    assert.equal(clientAddress({ ...headers, forwardedFor: "203.0.113.1, not-an-ip" }, "forwarded-for"), "unknown");
+    assert.equal(clientAddress({ ...headers, vercelForwardedFor: null }, "vercel"), "unknown");
+    assert.equal(clientAddress({ ...headers, realIp: "2001:db8::1" }, "x-real-ip"), "2001:db8::1");
+    assert.equal(clientAddress({ ...headers, realIp: "203.0.113.8, 10.0.0.1" }, "x-real-ip"), "unknown");
+  });
+
+  it("selects a mode only from explicit trust or Vercel", () => {
+    assert.equal(proxyIpMode({}), "off");
+    assert.equal(proxyIpMode({ VERCEL: "1" }), "vercel");
+    assert.equal(proxyIpMode({ VERCEL: "1", TRUST_PROXY_HEADERS: "0" }), "off");
+    assert.equal(proxyIpMode({ TRUST_PROXY_HEADERS: "1" }), "forwarded-for");
+    assert.equal(proxyIpMode({ TRUST_PROXY_HEADERS: "1", TRUST_PROXY_IP_HEADER: "x-real-ip" }), "x-real-ip");
+    assert.equal(proxyIpMode({ TRUST_PROXY_IP_HEADER: "x-real-ip" }), "off");
   });
 });
 
