@@ -1,6 +1,16 @@
 // AI 人格生成逻辑
 // 通过 /api/generate 调用小米 MiMo API
 
+import { API_DESCRIPTION_MAX, API_NAME_MAX, API_PARENT_SUMMARY_MAX, API_PROMPT_MAX, API_SUMMARY_MAX, API_TRAITS_MAX, TRAIT_SET } from "./api-limits";
+
+function clip(value: string, max: number): string {
+  return value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim().slice(0, max);
+}
+
+function clipName(value: string): string {
+  return value.replace(/[\u0000-\u001F]/g, "").trim().slice(0, API_NAME_MAX);
+}
+
 export interface AgentPersonality {
   name: string;
   summary: string;        // 一句话性格描述
@@ -62,11 +72,13 @@ export async function generatePersonality(
   name: string,
   description: string
 ): Promise<AgentPersonality & { radar: RadarData }> {
+  const safeName = clipName(name);
+  const safeDescription = clip(description, API_DESCRIPTION_MAX);
   try {
     const res = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, description, mode: "create" }),
+      body: JSON.stringify({ name: safeName, description: safeDescription, mode: "create" }),
     });
 
     if (!res.ok) {
@@ -76,16 +88,20 @@ export async function generatePersonality(
     const data = await res.json();
 
     if (data.error) {
-      throw new Error(data.error);
+      throw new Error(typeof data.error === "string" ? data.error : "generate_failed");
     }
 
-    const traits = data.traits || [];
-    const radar: RadarData = data.radar || generateRadarFromDescription(description);
+    const traits = Array.isArray(data.traits) ? data.traits.filter((t: unknown) => typeof t === "string").slice(0, API_TRAITS_MAX) : [];
+    const radar: RadarData = data.radar || generateRadarFromDescription(safeDescription);
+    const summary = typeof data.summary === "string" && data.summary.trim() ? data.summary.slice(0, API_SUMMARY_MAX) : safeDescription.slice(0, API_SUMMARY_MAX);
+    const fullPrompt = typeof data.fullPrompt === "string" && data.fullPrompt.trim()
+      ? data.fullPrompt.slice(0, API_PROMPT_MAX)
+      : `你是${safeName}，${safeDescription}`.slice(0, API_PROMPT_MAX);
 
     return {
-      name,
-      summary: data.summary || description.slice(0, 50),
-      fullPrompt: data.fullPrompt || `你是${name}，${description}`,
+      name: safeName,
+      summary,
+      fullPrompt,
       traits,
       avatar: pickAvatar(traits),
       radar,
@@ -98,12 +114,12 @@ export async function generatePersonality(
     const traits = shuffled.slice(0, 3);
 
     return {
-      name,
-      summary: description.length > 50 ? description.slice(0, 50) + "..." : description,
-      fullPrompt: `你是${name}，一个独特的 AI 人格。性格描述：${description}。你的性格标签：${traits.join("、")}。始终保持这个性格特点，用符合性格的语气和风格回答。`,
+      name: safeName,
+      summary: safeDescription.length > 50 ? safeDescription.slice(0, 50) + "..." : safeDescription,
+      fullPrompt: `你是${safeName}，一个独特的 AI 人格。性格描述：${safeDescription}。你的性格标签：${traits.join("、")}。始终保持这个性格特点，用符合性格的语气和风格回答。`.slice(0, API_PROMPT_MAX),
       traits,
       avatar: pickAvatar(traits),
-      radar: generateRadarFromDescription(description),
+      radar: generateRadarFromDescription(safeDescription),
     };
   }
 }
@@ -114,44 +130,52 @@ export async function generateBreedPersonality(
   parent2: AgentPersonality,
   childName: string
 ): Promise<AgentPersonality & { radar: RadarData }> {
+  const safeChild = clipName(childName);
+  const safeParent = (parent: AgentPersonality) => ({
+    name: clipName(parent.name),
+    summary: clip(parent.summary, API_PARENT_SUMMARY_MAX),
+    traits: parent.traits.filter((trait) => TRAIT_SET.has(trait)).slice(0, API_TRAITS_MAX),
+  });
+  const p1 = safeParent(parent1);
+  const p2 = safeParent(parent2);
   try {
     const res = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: childName,
+        name: safeChild,
         mode: "breed",
-        parent1: { name: parent1.name, summary: parent1.summary, traits: parent1.traits },
-        parent2: { name: parent2.name, summary: parent2.summary, traits: parent2.traits },
+        parent1: p1,
+        parent2: p2,
       }),
     });
 
     if (!res.ok) throw new Error(`API returned ${res.status}`);
 
     const data = await res.json();
-    if (data.error) throw new Error(data.error);
+    if (data.error) throw new Error(typeof data.error === "string" ? data.error : "generate_failed");
 
-    const traits = data.traits || [];
+    const traits = Array.isArray(data.traits) ? data.traits.filter((t: unknown) => typeof t === "string").slice(0, API_TRAITS_MAX) : [];
     const radar: RadarData = data.radar || {
       humor: 50, kindness: 50, intelligence: 50,
       creativity: 50, directness: 50, patience: 50,
     };
 
     return {
-      name: childName,
-      summary: data.summary || `继承了${parent1.name}和${parent2.name}的融合灵魂`,
-      fullPrompt: data.fullPrompt || `你是${childName}，融合了${parent1.name}和${parent2.name}的灵魂。`,
+      name: safeChild,
+      summary: typeof data.summary === "string" && data.summary.trim() ? data.summary.slice(0, API_SUMMARY_MAX) : `继承了${p1.name}和${p2.name}的融合灵魂`.slice(0, API_SUMMARY_MAX),
+      fullPrompt: typeof data.fullPrompt === "string" && data.fullPrompt.trim() ? data.fullPrompt.slice(0, API_PROMPT_MAX) : `你是${safeChild}，融合了${p1.name}和${p2.name}的灵魂。`.slice(0, API_PROMPT_MAX),
       traits,
       avatar: pickAvatar(traits),
       radar,
     };
   } catch (err) {
     console.error("AI breed failed, using fallback:", err);
-    const mixedTraits = [...parent1.traits.slice(0, 2), ...parent2.traits.slice(0, 1)];
+    const mixedTraits = [...p1.traits.slice(0, 2), ...p2.traits.slice(0, 1)];
     return {
-      name: childName,
-      summary: `继承了"${parent1.name}"的${parent1.traits[0]}和"${parent2.name}"的${parent2.traits[0]}`,
-      fullPrompt: `你是${childName}，融合了两个AI灵魂的新生命。`,
+      name: safeChild,
+      summary: `继承了"${p1.name}"的${p1.traits[0] || "特质"}和"${p2.name}"的${p2.traits[0] || "特质"}`.slice(0, API_SUMMARY_MAX),
+      fullPrompt: `你是${safeChild}，融合了两个AI灵魂的新生命。`,
       traits: mixedTraits,
       avatar: pickAvatar(mixedTraits),
       radar: { humor: 50, kindness: 50, intelligence: 50, creativity: 50, directness: 50, patience: 50 },
