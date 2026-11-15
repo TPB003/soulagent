@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 
 contract SoulAgent is ERC721, ERC721URIStorage, ERC721Enumerable, Ownable, ReentrancyGuard {
     uint256 private _nextTokenId = 1;
@@ -32,6 +33,8 @@ contract SoulAgent is ERC721, ERC721URIStorage, ERC721Enumerable, Ownable, Reent
     event AgentListed(uint256 indexed tokenId, uint256 price);
     event AgentSold(uint256 indexed tokenId, address indexed seller, address indexed buyer, uint256 price);
     event AgentDelisted(uint256 indexed tokenId);
+    event FeesUpdated(uint256 mintFee, uint256 breedFee);
+    event Withdrawn(address indexed to, uint256 amount);
 
     constructor() ERC721("SoulAgent", "SOUL") Ownable(msg.sender) {}
 
@@ -114,18 +117,45 @@ contract SoulAgent is ERC721, ERC721URIStorage, ERC721Enumerable, Ownable, Reent
         emit AgentDelisted(tokenId);
     }
 
+    /// @notice Buy a listed agent. `msg.value` must be at least the listing price;
+    ///         any excess is refunded. The seller is paid with a full-gas call.
     function buyAgent(uint256 tokenId) external payable nonReentrant {
         Agent storage agent = agents[tokenId];
-        require(agent.price > 0, "Not for sale");
-        require(msg.value >= agent.price, "Insufficient payment");
-        require(_ownerOf(tokenId) != msg.sender, "Cannot buy own agent");
+        uint256 price = agent.price;
+        require(price > 0, "Not for sale");
+        require(msg.value >= price, "Insufficient payment");
 
         address seller = _ownerOf(tokenId);
-        agent.price = 0;
-        _transfer(seller, seller, tokenId);
+        require(seller != msg.sender, "Cannot buy own agent");
 
-        payable(seller).transfer(msg.value);
-        emit AgentSold(tokenId, seller, msg.sender, msg.value);
+        // Effects before the payout. Zeroing first also keeps _update from
+        // emitting AgentDelisted for a completed sale.
+        agent.price = 0;
+        _transfer(seller, msg.sender, tokenId);
+        emit AgentSold(tokenId, seller, msg.sender, price);
+
+        Address.sendValue(payable(seller), price);
+
+        uint256 excess = msg.value - price;
+        if (excess > 0) {
+            Address.sendValue(payable(msg.sender), excess);
+        }
+    }
+
+    /// @notice Owner withdraws the full contract balance (mint and breed fees).
+    function withdraw(address payable to) external nonReentrant onlyOwner {
+        require(to != address(0), "Zero address");
+        uint256 amount = address(this).balance;
+        require(amount > 0, "Nothing to withdraw");
+        emit Withdrawn(to, amount);
+        Address.sendValue(to, amount);
+    }
+
+    /// @notice Owner updates mint and breed fees. Zero is allowed.
+    function setFees(uint256 newMintFee, uint256 newBreedFee) external onlyOwner {
+        mintFee = newMintFee;
+        breedFee = newBreedFee;
+        emit FeesUpdated(newMintFee, newBreedFee);
     }
 
     function getChildren(uint256 tokenId) external view returns (uint256[] memory) {
@@ -146,8 +176,16 @@ contract SoulAgent is ERC721, ERC721URIStorage, ERC721Enumerable, Ownable, Reent
     }
 
     // Required overrides
+    /// @dev Drop any listing when a token changes hands outside of buyAgent
+    ///      (transferFrom, safeTransferFrom, or a future burn). buyAgent clears
+    ///      `price` before calling `_transfer`, so a sale emits AgentSold only.
     function _update(address to, uint256 tokenId, address auth) internal override(ERC721, ERC721Enumerable) returns (address) {
-        return super._update(to, tokenId, auth);
+        address from = super._update(to, tokenId, auth);
+        if (from != address(0) && agents[tokenId].price != 0) {
+            agents[tokenId].price = 0;
+            emit AgentDelisted(tokenId);
+        }
+        return from;
     }
 
     function _increaseBalance(address account, uint128 value) internal override(ERC721, ERC721Enumerable) {
