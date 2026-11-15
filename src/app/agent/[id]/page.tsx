@@ -1,29 +1,40 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { parseEther, formatEther } from "viem";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useAgent, useOwnerOf, useChildren } from "@/lib/hooks";
-import { getAgentEmoji, BASESCAN_NFT, BASESCAN_ADDR, SOUL_AGENT_ADDRESS, SOUL_AGENT_ABI, BASESCAN_CONTRACT, type OnChainAgent } from "@/lib/contract";
+import { useParams } from "next/navigation";
+import { useAccount, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { parseEther } from "viem";
+import { GenerativeAvatar } from "@/components/GenerativeAvatar";
+import { EmptyState, Meter } from "@/components/ui/primitives";
+import { useTxToast } from "@/components/ui/toast";
+import { Icons } from "@/components/Icons";
+import {
+  BASESCAN_ADDR,
+  BASESCAN_NFT,
+  SOUL_AGENT_ABI,
+  SOUL_AGENT_ADDRESS,
+  type OnChainAgent,
+} from "@/lib/contract";
+import { agentBlurb, agentTraits, formatEth, generationLabel, isLiveAgent, shortAddress } from "@/lib/display";
+import { useAgent, useChildren, useOwnerOf } from "@/lib/hooks";
 
 interface Message { role: "user" | "agent"; content: string; timestamp: number; }
 
-// 对话历史 localStorage key
 const historyKey = (id: string) => `soulagent_chat_${id}`;
 const evoKey = (id: string) => `soulagent_evo_${id}`;
+const PROMPTS = ["你是谁？", "用一句话形容你的性格", "你和别人最不一样的地方是什么？"];
 
 function loadHistory(id: string): Message[] {
   if (typeof window === "undefined") return [];
   try { return JSON.parse(localStorage.getItem(historyKey(id)) || "[]"); } catch { return []; }
 }
-function saveHistory(id: string, msgs: Message[]) {
-  localStorage.setItem(historyKey(id), JSON.stringify(msgs.slice(-100))); // 保留最近100条
+function saveHistory(id: string, messages: Message[]) {
+  localStorage.setItem(historyKey(id), JSON.stringify(messages.slice(-100)));
 }
-function loadEvo(id: string): number {
+function loadEvo(id: string) {
   if (typeof window === "undefined") return 0;
-  return parseInt(localStorage.getItem(evoKey(id)) || "0");
+  return Number.parseInt(localStorage.getItem(evoKey(id)) || "0", 10) || 0;
 }
 function saveEvo(id: string, count: number) {
   localStorage.setItem(evoKey(id), String(count));
@@ -31,357 +42,392 @@ function saveEvo(id: string, count: number) {
 
 export default function AgentDetailPage() {
   const params = useParams();
-  const { isConnected, address } = useAccount();
-  const id = params.id as string;
+  const idParam = Array.isArray(params.id) ? params.id[0] : params.id;
+  const id = Number(idParam);
+  const { address } = useAccount();
 
-  // 链上数据
-  const { data: agentData, isLoading: agentLoading } = useAgent(Number(id));
-  const { data: ownerAddr } = useOwnerOf(Number(id));
-  const { data: childrenIds } = useChildren(Number(id));
+  const agentQuery = useAgent(id);
+  const ownerQuery = useOwnerOf(id);
+  const childrenQuery = useChildren(Number.isFinite(id) ? id : 0);
+  const agent = isLiveAgent(agentQuery.data) ? agentQuery.data : undefined;
 
-  // 对话状态
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [loadedFor, setLoadedFor] = useState(idParam);
+  const [messages, setMessages] = useState<Message[]>(() => loadHistory(idParam ?? ""));
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [evoCount, setEvoCount] = useState(0);
+  const [evoCount, setEvoCount] = useState(() => loadEvo(idParam ?? ""));
   const [listPrice, setListPrice] = useState("");
-  const [showListForm, setShowListForm] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { writeContract, data: txData, isPending: isTxPending } = useWriteContract();
-  const { isLoading: isTxConfirming } = useWaitForTransactionReceipt({ hash: txData });
+  const [showList, setShowList] = useState(false);
+  const [formError, setFormError] = useState("");
+  const endRef = useRef<HTMLDivElement>(null);
+  const refetchAgent = useRef(agentQuery.refetch);
 
-  // 加载历史
+  if (idParam !== loadedFor) {
+    setLoadedFor(idParam);
+    setMessages(loadHistory(idParam ?? ""));
+    setEvoCount(loadEvo(idParam ?? ""));
+    setInput("");
+  }
+
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const receipt = useWaitForTransactionReceipt({ hash });
+
   useEffect(() => {
-    setMessages(loadHistory(id));
-    setEvoCount(loadEvo(id));
-  }, [id]);
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isTyping]);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => {
+    refetchAgent.current = agentQuery.refetch;
+  });
 
-  const agent = agentData as OnChainAgent | undefined;
-  const isOwner = address && ownerAddr && address.toLowerCase() === (ownerAddr as string).toLowerCase();
-  const isListed = agent && agent.price > 0;
-  const agentName = agent?.name || `Agent #${id}`;
-  const emoji = getAgentEmoji(agentName);
+  useEffect(() => {
+    if (receipt.isSuccess) void refetchAgent.current();
+  }, [receipt.isSuccess]);
+
+  const isOwner = Boolean(address && ownerQuery.data && address.toLowerCase() === ownerQuery.data.toLowerCase());
+  const listed = Boolean(agent && agent.price > BigInt(0));
+  const name = agent?.name ?? "";
+  const traits = agent ? agentTraits(agent) : [];
+  const blurb = agent ? agentBlurb(agent) : "";
+  const prompt = agent?.personalitySummary || blurb;
   const gen = agent ? Number(agent.generation) : 0;
-  const priceEth = agent && agent.price > 0 ? (Number(agent.price) / 1e18).toFixed(4) : null;
-  const summary = agent?.personalitySummary || "链上暂无描述";
-  const creationTime = agent?.createdAt ? new Date(Number(agent.createdAt) * 1000).toLocaleDateString("zh-CN") : "";
-
-  // 进化等级
   const evoLevel = evoCount >= 50 ? 3 : evoCount >= 20 ? 2 : evoCount >= 5 ? 1 : 0;
   const evoLabel = ["初始", "觉醒", "进化", "超进化"][evoLevel];
-  const evoColor = ["var(--text-quaternary)", "var(--accent)", "#828fff", "#fbbf24"][evoLevel];
+  const nextAt = [5, 20, 50][evoLevel] ?? 50;
 
-  // 上架
-  const handleList = () => {
-    if (!listPrice || parseFloat(listPrice) <= 0) return;
-    writeContract({
-      address: SOUL_AGENT_ADDRESS, abi: SOUL_AGENT_ABI as any,
-      functionName: "listForSale",
-      args: [BigInt(id), parseEther(listPrice)],
-    });
-    setShowListForm(false);
-  };
+  useTxToast({
+    id: `detail-${idParam}`,
+    isPending,
+    isConfirming: receipt.isLoading,
+    isSuccess: receipt.isSuccess,
+    error,
+    hash,
+    success: listed && !showList ? "交易已确认" : "交易已确认",
+  });
 
-  // 下架
-  const handleDelist = () => {
-    writeContract({
-      address: SOUL_AGENT_ADDRESS, abi: SOUL_AGENT_ABI as any,
-      functionName: "delist", args: [BigInt(id)],
-    });
-  };
-
-  // 购买
-  const handleBuy = () => {
-    if (!agent || agent.price <= 0) return;
-    writeContract({
-      address: SOUL_AGENT_ADDRESS, abi: SOUL_AGENT_ABI as any,
-      functionName: "buyAgent", args: [BigInt(id)], value: agent.price,
-    });
-  };
-
-  const handleSend = useCallback(async () => {
-    if (!input.trim() || isTyping) return;
-
-    const userMsg: Message = { role: "user", content: input.trim(), timestamp: Date.now() };
-    const newMsgs = [...messages, userMsg];
-    setMessages(newMsgs);
+  const handleSend = useCallback(async (preset?: string) => {
+    const content = (preset ?? input).trim();
+    if (!content || isTyping || !agent) return;
+    const userMsg: Message = { role: "user", content, timestamp: Date.now() };
+    const next = [...messages, userMsg];
+    setMessages(next);
     setInput("");
     setIsTyping(true);
-
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          agentName,
-          systemPrompt: `你是${agentName}，性格描述：${summary}。保持角色，回复简洁有力。`,
-          messages: newMsgs.slice(-10).map(m => ({ role: m.role === "agent" ? "assistant" : "user", content: m.content })),
+          agentName: name,
+          systemPrompt: `你是${name}，性格描述：${prompt}。保持角色，回复简洁有力。`,
+          messages: next.slice(-10).map((message) => ({
+            role: message.role === "agent" ? "assistant" : "user",
+            content: message.content,
+          })),
         }),
       });
-
       const data = await res.json();
-      const agentMsg: Message = {
-        role: "agent",
-        content: data.reply || data.error || "...",
-        timestamp: Date.now(),
-      };
-
-      const updated = [...newMsgs, agentMsg];
+      const reply: Message = { role: "agent", content: data.reply || data.error || "…", timestamp: Date.now() };
+      const updated = [...next, reply];
       setMessages(updated);
-      saveHistory(id, updated);
-
-      // 进化计数
-      const newEvo = evoCount + 1;
-      setEvoCount(newEvo);
-      saveEvo(id, newEvo);
+      saveHistory(String(idParam), updated);
+      const grown = evoCount + 1;
+      setEvoCount(grown);
+      saveEvo(String(idParam), grown);
     } catch {
-      const errMsg: Message = { role: "agent", content: "网络错误，稍后再试", timestamp: Date.now() };
-      const updated = [...newMsgs, errMsg];
+      const reply: Message = { role: "agent", content: "网络中断了，过一会儿再试。", timestamp: Date.now() };
+      const updated = [...next, reply];
       setMessages(updated);
-      saveHistory(id, updated);
+      saveHistory(String(idParam), updated);
     }
-
     setIsTyping(false);
-  }, [input, isTyping, messages, agentName, summary, id, evoCount]);
+  }, [input, isTyping, messages, agent, name, prompt, idParam, evoCount]);
 
-  if (agentLoading) {
+  const list = () => {
+    setFormError("");
+    try {
+      const value = parseEther(listPrice);
+      if (value <= BigInt(0)) throw new Error("bad");
+      writeContract({
+        address: SOUL_AGENT_ADDRESS,
+        abi: SOUL_AGENT_ABI,
+        functionName: "listForSale",
+        args: [BigInt(id), value],
+      });
+      setShowList(false);
+    } catch {
+      setFormError("请输入大于 0 的 ETH 价格");
+    }
+  };
+
+  if (!Number.isFinite(id) || id <= 0) {
     return (
-      <div style={{ textAlign: "center", padding: "120px 24px", color: "var(--text-tertiary)" }}>
-        加载中...
-      </div>
+      <main className="page page-narrow">
+        <EmptyState icon={Icons.sparkle} title="编号不对" body="灵魂编号是从 1 开始的整数。" action={<Link className="btn btn-secondary" href="/market">回市场</Link>} />
+      </main>
+    );
+  }
+
+  if (agentQuery.isLoading) {
+    return (
+      <main className="page">
+        <div className="agent-layout" aria-busy="true" aria-label="正在读取灵魂">
+          <div className="card skel-card">
+            <div className="skeleton skel-art" />
+            <div className="skel-body">
+              <div className="skeleton skel-line" />
+              <div className="skeleton skel-line short" />
+            </div>
+          </div>
+          <div className="card" style={{ minHeight: 420 }} />
+        </div>
+      </main>
+    );
+  }
+
+  if (agentQuery.isError || !agent) {
+    return (
+      <main className="page page-narrow">
+        <EmptyState
+          icon={Icons.sparkle}
+          title="没有这枚灵魂"
+          body={agentQuery.isError ? "链上暂时读不到。可能是网络中断。" : `编号 #${id} 在合约里不存在。`}
+          action={
+            <>
+              <button type="button" className="btn btn-secondary" onClick={() => agentQuery.refetch()}>重试</button>
+              <Link className="btn btn-primary" href="/market">回市场</Link>
+            </>
+          }
+        />
+      </main>
     );
   }
 
   return (
-    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 24px", display: "grid", gridTemplateColumns: "300px 1fr", gap: 24 }}>
-
-      {/* Left: Agent Info */}
-      <div>
-        <div style={{
-          background: "rgba(255,255,255,0.02)",
-          border: "1px solid rgba(255,255,255,0.05)",
-          borderRadius: 8, padding: 24,
-        }}>
-          {/* Avatar & Name */}
-          <div style={{ textAlign: "center", marginBottom: 20 }}>
-            <div style={{ fontSize: 56, marginBottom: 8 }}>{emoji}</div>
-            <h1 style={{ fontSize: 20, fontWeight: 590, letterSpacing: "-0.24px", color: "var(--text-primary)" }}>{agentName}</h1>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 4 }}>
-              <span style={{ fontSize: 11, color: "var(--text-quaternary)", fontFamily: "'JetBrains Mono', monospace" }}>Gen {gen}</span>
-              <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 4, background: "rgba(94,106,210,0.15)", color: evoColor, fontWeight: 510 }}>{evoLabel}</span>
-            </div>
-          </div>
-
-          {/* Summary */}
-          <p style={{ fontSize: 13, color: "var(--text-tertiary)", marginBottom: 16, lineHeight: 1.6 }}>{summary}</p>
-
-          {/* Evolution */}
-          <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: 8, padding: 12, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 16 }}>
-            <div style={{ fontSize: 10, color: "var(--text-quaternary)", marginBottom: 8, fontWeight: 510, letterSpacing: "0.5px" }}>EVOLUTION</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ flex: 1, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.05)" }}>
-                <div style={{ width: `${Math.min(100, (evoCount / 50) * 100)}%`, height: "100%", borderRadius: 2, background: evoColor, transition: "width 0.3s" }} />
+    <main className="page">
+      <div className="agent-layout">
+        <aside className="card profile">
+          <GenerativeAvatar name={name} traits={traits} fluid />
+          <div className="profile-body">
+            <div>
+              <div className="cluster" style={{ marginBottom: 8 }}>
+                <span className="badge">{generationLabel(gen)}</span>
+                <span className="badge">{evoLabel}</span>
+                <span className="num" style={{ color: "var(--dim)", fontSize: 12 }}>#{id}</span>
               </div>
-              <span style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "'JetBrains Mono', monospace" }}>{evoCount}/50</span>
+              <h1>{name}</h1>
+              <p className="blurb">{blurb}</p>
             </div>
-            <p style={{ fontSize: 11, color: "var(--text-quaternary)", marginTop: 6 }}>对话 {evoCount} 次 · {evoLevel < 3 ? `再聊 ${[5, 20, 50][evoLevel] - evoCount} 次升级` : "已达最高级"}</p>
-          </div>
 
-          {/* Bloodline */}
-          {agent && Number(agent.parent1) > 0 && (
-            <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: 8, padding: 12, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 16, textAlign: "center" }}>
-              <div style={{ fontSize: 10, color: "var(--text-quaternary)", marginBottom: 8, fontWeight: 510 }}>BLOODLINE</div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 13 }}>
-                <Link href={`/agent/${Number(agent.parent1)}`} style={{ color: "var(--accent-hover)", textDecoration: "none" }}>#{Number(agent.parent1)}</Link>
-                <span style={{ color: "var(--text-quaternary)" }}>+</span>
-                <Link href={`/agent/${Number(agent.parent2)}`} style={{ color: "var(--accent-hover)", textDecoration: "none" }}>#{Number(agent.parent2)}</Link>
+            {traits.length > 0 && (
+              <div className="tags">
+                {traits.map((trait) => <span key={trait} className="tag">{trait}</span>)}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Children */}
-          {childrenIds && childrenIds.length > 0 && (
-            <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: 8, padding: 12, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 16 }}>
-              <div style={{ fontSize: 10, color: "var(--text-quaternary)", marginBottom: 8, fontWeight: 510 }}>OFFSPRING ({childrenIds.length})</div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {childrenIds.map(cid => (
-                  <Link key={String(cid)} href={`/agent/${Number(cid)}`} style={{ fontSize: 12, padding: "2px 8px", borderRadius: 4, border: "1px solid rgba(255,255,255,0.05)", color: "var(--text-tertiary)", textDecoration: "none" }}>
-                    #{Number(cid)}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
+            <Meter label={`成长 · 已对话 ${evoCount} 次`} value={Math.min(100, (evoCount / 50) * 100)} showValue={false} />
+            <p className="hint">
+              {evoLevel < 3 ? `再对话 ${Math.max(0, nextAt - evoCount)} 次，进入下一阶段。` : "已经到目前的最高阶段。"}
+            </p>
 
-          {/* Price + Actions — 根据是否是持有者显示不同 UI */}
-          {isOwner ? (
-            /* 持有者：上架/下架 */
-            <div style={{ marginBottom: 16 }}>
-              {isListed ? (
-                <>
-                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 600, color: "var(--accent)", textAlign: "center", marginBottom: 8 }}>
-                    {priceEth} ETH
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={handleDelist} disabled={isTxPending || isTxConfirming}
-                      className="btn-ghost" style={{ flex: 1, justifyContent: "center", fontSize: 13,
-                        color: "var(--red)", borderColor: "rgba(248,113,113,0.2)",
-                        background: "rgba(248,113,113,0.05)",
-                        opacity: isTxPending || isTxConfirming ? 0.4 : 1,
-                      }}>
-                      {isTxPending || isTxConfirming ? "处理中..." : "下架"}
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {showListForm ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      <input type="number" value={listPrice} onChange={(e) => setListPrice(e.target.value)}
-                        placeholder="设置价格 (ETH)" step="0.001" min="0" className="input" style={{ fontSize: 13 }} />
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button onClick={handleList} disabled={isTxPending || isTxConfirming || !listPrice}
-                          className="btn-primary" style={{ flex: 1, justifyContent: "center", fontSize: 13,
-                            opacity: !listPrice ? 0.4 : 1,
-                          }}>
-                          {isTxPending ? "钱包确认..." : isTxConfirming ? "上架中..." : "确认上架"}
-                        </button>
-                        <button onClick={() => setShowListForm(false)}
-                          className="btn-ghost" style={{ fontSize: 13, padding: "8px 16px" }}>
-                          取消
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button onClick={() => setShowListForm(true)}
-                      className="btn-primary" style={{ width: "100%", justifyContent: "center", fontSize: 13 }}>
-                      上架出售
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          ) : (
-            /* 非持有者：购买或未在售 */
-            <div style={{ marginBottom: 16 }}>
-              {isListed ? (
-                <>
-                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 600, color: "var(--accent)", textAlign: "center", marginBottom: 8 }}>
-                    {priceEth} ETH
-                  </div>
-                  <button onClick={handleBuy} disabled={isTxPending || isTxConfirming}
-                    className="btn-primary" style={{ width: "100%", justifyContent: "center", fontSize: 13,
-                      opacity: isTxPending || isTxConfirming ? 0.4 : 1,
-                    }}>
-                    {isTxPending ? "钱包确认..." : isTxConfirming ? "购买中..." : "购买并使用"}
-                  </button>
-                </>
-              ) : (
-                <div className="card" style={{ padding: 12, textAlign: "center" }}>
-                  <p style={{ fontSize: 13, color: "var(--text-quaternary)" }}>未在售</p>
-                  <p style={{ fontSize: 11, color: "var(--text-quaternary)", marginTop: 4 }}>持有者尚未上架此 Agent</p>
+            {Number(agent.parent1) > 0 && (
+              <div>
+                <div className="kv-label">亲代</div>
+                <div className="cluster" style={{ marginTop: 6 }}>
+                  <Link className="linkish" href={`/agent/${Number(agent.parent1)}`}>#{Number(agent.parent1)}</Link>
+                  <span style={{ color: "var(--dim)" }}>+</span>
+                  <Link className="linkish" href={`/agent/${Number(agent.parent2)}`}>#{Number(agent.parent2)}</Link>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
 
-          {/* BaseScan Links */}
-          <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-            <div style={{ fontSize: 10, color: "var(--text-quaternary)", marginBottom: 8, fontWeight: 510, letterSpacing: "0.5px" }}>ON-CHAIN</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <a href={BASESCAN_NFT(Number(id))} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "var(--text-tertiary)", textDecoration: "none" }} onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent)"; }} onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-tertiary)"; }}>
-                NFT #{id} · BaseScan ↗
+            {childrenQuery.data && childrenQuery.data.length > 0 && (
+              <div>
+                <div className="kv-label">子代 · {childrenQuery.data.length}</div>
+                <div className="tags" style={{ marginTop: 6 }}>
+                  {childrenQuery.data.map((childId) => (
+                    <Link key={String(childId)} href={`/agent/${Number(childId)}`} className="tag">
+                      #{Number(childId)}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <TradePanel
+              agent={agent}
+              isOwner={isOwner}
+              listed={listed}
+              busy={isPending || receipt.isLoading}
+              showList={showList}
+              listPrice={listPrice}
+              formError={formError}
+              onShowList={setShowList}
+              onPrice={setListPrice}
+              onList={list}
+              onDelist={() => writeContract({
+                address: SOUL_AGENT_ADDRESS,
+                abi: SOUL_AGENT_ABI,
+                functionName: "delist",
+                args: [BigInt(id)],
+              })}
+              onBuy={() => writeContract({
+                address: SOUL_AGENT_ADDRESS,
+                abi: SOUL_AGENT_ABI,
+                functionName: "buyAgent",
+                args: [BigInt(id)],
+                value: agent.price,
+              })}
+            />
+
+            <div className="kv">
+              <span className="kv-label">链上</span>
+              <a href={BASESCAN_NFT(id)} target="_blank" rel="noopener noreferrer">NFT #{id}</a>
+              {ownerQuery.data && (
+                <a href={BASESCAN_ADDR(ownerQuery.data)} target="_blank" rel="noopener noreferrer">
+                  持有者 {shortAddress(ownerQuery.data)}
+                </a>
+              )}
+              <a href={BASESCAN_ADDR(agent.creator)} target="_blank" rel="noopener noreferrer">
+                创造者 {shortAddress(agent.creator)}
               </a>
-              {ownerAddr && (
-                <a href={BASESCAN_ADDR(ownerAddr)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "var(--text-tertiary)", textDecoration: "none" }} onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent)"; }} onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-tertiary)"; }}>
-                  持有者: {ownerAddr.slice(0, 6)}...{ownerAddr.slice(-4)} ↗
-                </a>
-              )}
-              {agent && (
-                <a href={BASESCAN_ADDR(agent.creator)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "var(--text-tertiary)", textDecoration: "none" }} onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent)"; }} onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-tertiary)"; }}>
-                  创造者: {agent.creator.slice(0, 6)}...{agent.creator.slice(-4)} ↗
-                </a>
-              )}
-              {creationTime && <span style={{ fontSize: 11, color: "var(--text-quaternary)" }}>铸造于 {creationTime}</span>}
+              <span>铸造于 {new Date(Number(agent.createdAt) * 1000).toLocaleDateString("zh-CN")}</span>
             </div>
           </div>
-        </div>
-      </div>
+        </aside>
 
-      {/* Right: Chat */}
-      <div style={{
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(255,255,255,0.05)",
-        borderRadius: 8,
-        display: "flex", flexDirection: "column",
-        height: "calc(100vh - 140px)",
-      }}>
-        {/* Header */}
-        <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <span style={{ fontSize: 13, fontWeight: 510, color: "var(--text-primary)" }}>和 {agentName} 对话</span>
-            <span style={{ fontSize: 11, color: "var(--text-quaternary)", marginLeft: 8 }}>AI 驱动 · MiMo</span>
+        <section className="card chat" aria-label={`和 ${name} 对话`}>
+          <header className="chat-head">
+            <div className="mini-avatar">
+              <GenerativeAvatar name={name} traits={traits} fluid />
+            </div>
+            <div className="who">
+              <strong>和 {name} 说话</strong>
+              <span>由链上人格驱动</span>
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              style={{ marginLeft: "auto" }}
+              onClick={() => { setMessages([]); saveHistory(String(idParam), []); }}
+            >
+              清空记录
+            </button>
+          </header>
+
+          <div className="thread">
+            {messages.length === 0 && (
+              <div className="chat-empty">
+                <h2>可以从一句问候开始</h2>
+                <p className="hint">对话只保存在这台浏览器里，最近一百条。</p>
+                <div className="suggest">
+                  {PROMPTS.map((promptText) => (
+                    <button key={promptText} type="button" className="chip" onClick={() => handleSend(promptText)}>
+                      {promptText}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {messages.map((message, index) => (
+              <div key={`${message.timestamp}-${index}`} className={`bubble ${message.role}`}>
+                {message.content}
+              </div>
+            ))}
+            {isTyping && (
+              <div className="bubble agent" aria-label="正在回复">
+                <span className="dots" aria-hidden="true"><i /><i /><i /></span>
+              </div>
+            )}
+            <div ref={endRef} />
           </div>
-          <button onClick={() => { setMessages([]); saveHistory(id, []); }} style={{ fontSize: 11, color: "var(--text-quaternary)", background: "none", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 4, padding: "2px 8px", cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>清空</button>
-        </div>
 
-        {/* Messages */}
-        <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
-          {messages.length === 0 && (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-quaternary)" }}>
-              <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.3 }}>{emoji}</div>
-              <p style={{ fontSize: 13 }}>和 {agentName} 打个招呼吧</p>
-            </div>
-          )}
-          {messages.map((msg, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", marginBottom: 8 }}>
-              <div style={{
-                maxWidth: "75%", padding: "8px 14px", borderRadius: 12, fontSize: 14, lineHeight: 1.5,
-                ...(msg.role === "user" ? {
-                  background: "var(--brand)", color: "#fff", borderBottomRightRadius: 4,
-                } : {
-                  background: "rgba(255,255,255,0.05)", color: "var(--text-secondary)", borderBottomLeftRadius: 4,
-                }),
-              }}>
-                {msg.role === "agent" && <span style={{ marginRight: 4 }}>{emoji}</span>}
-                {msg.content}
-              </div>
-            </div>
-          ))}
-          {isTyping && (
-            <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 8 }}>
-              <div style={{ padding: "8px 14px", borderRadius: 12, borderBottomLeftRadius: 4, background: "rgba(255,255,255,0.05)", fontSize: 13, color: "var(--text-quaternary)" }}>
-                {emoji} 思考中...
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input */}
-        <div style={{ padding: 12, borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", gap: 8 }}>
-          <input
-            type="text" value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="说点什么..."
-            style={{
-              flex: 1, background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-default)",
-              borderRadius: 6, padding: "8px 12px", color: "var(--text-primary)", fontSize: 14, outline: "none",
-              fontFamily: "'Inter', sans-serif",
-            }}
-          />
-          <button onClick={handleSend} disabled={!input.trim() || isTyping} style={{
-            background: "var(--brand)", color: "#fff", padding: "8px 16px", borderRadius: 6,
-            fontSize: 13, fontWeight: 510, border: "none",
-            cursor: !input.trim() || isTyping ? "not-allowed" : "pointer",
-            opacity: !input.trim() || isTyping ? 0.4 : 1,
-            fontFamily: "'Inter', sans-serif",
-          }}>发送</button>
-        </div>
+          <form className="composer" onSubmit={(event) => { event.preventDefault(); handleSend(); }}>
+            <label className="sr-only" htmlFor="chat-input">
+              写给 {name}
+            </label>
+            <input
+              id="chat-input"
+              className="input"
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              placeholder={`写给 ${name}…`}
+            />
+            <button type="submit" className="btn btn-primary btn-icon" disabled={!input.trim() || isTyping} aria-label="发送">
+              {Icons.send}
+            </button>
+          </form>
+        </section>
       </div>
-    </div>
+    </main>
   );
+}
+
+function TradePanel({
+  agent,
+  isOwner,
+  listed,
+  busy,
+  showList,
+  listPrice,
+  formError,
+  onShowList,
+  onPrice,
+  onList,
+  onDelist,
+  onBuy,
+}: {
+  agent: OnChainAgent;
+  isOwner: boolean;
+  listed: boolean;
+  busy: boolean;
+  showList: boolean;
+  listPrice: string;
+  formError: string;
+  onShowList: (value: boolean) => void;
+  onPrice: (value: string) => void;
+  onList: () => void;
+  onDelist: () => void;
+  onBuy: () => void;
+}) {
+  if (isOwner && listed) {
+    return (
+      <div className="stack">
+        <strong className="num">{formatEth(agent.price)} ETH</strong>
+        <button type="button" className="btn btn-danger" disabled={busy} onClick={onDelist}>
+          {busy ? "处理中…" : "下架"}
+        </button>
+      </div>
+    );
+  }
+  if (isOwner) {
+    return showList ? (
+      <div className="stack">
+        <label className="field">
+          <span className="field-label">价格，单位 ETH</span>
+          <input className="input" inputMode="decimal" value={listPrice} onChange={(event) => onPrice(event.target.value)} placeholder="0.01" />
+        </label>
+        {formError && <p className="hint" style={{ color: "var(--bad)" }}>{formError}</p>}
+        <div className="cluster">
+          <button type="button" className="btn btn-primary" disabled={busy || !listPrice} onClick={onList}>
+            {busy ? "处理中…" : "确认上架"}
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={() => onShowList(false)}>取消</button>
+        </div>
+      </div>
+    ) : (
+      <button type="button" className="btn btn-primary" onClick={() => onShowList(true)}>上架出售</button>
+    );
+  }
+  if (listed) {
+    return (
+      <div className="stack">
+        <strong className="num">{formatEth(agent.price)} ETH</strong>
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={onBuy}>
+          {busy ? "处理中…" : "购买"}
+        </button>
+      </div>
+    );
+  }
+  return <p className="hint">持有者还没有上架。你仍然可以在这里和它对话。</p>;
 }
