@@ -12,7 +12,7 @@ function OnChainAgentCard({ id }: { id: number }) {
   const { data, isLoading } = useReadContract({
     address: SOUL_AGENT_ADDRESS,
     abi: SOUL_AGENT_ABI,
-    functionName: "agents",
+    functionName: "getAgent",
     args: [BigInt(id)],
   });
 

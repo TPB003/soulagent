@@ -260,7 +260,7 @@ export default function AgentDetailPage() {
                       上架出售
                     </button>
                   )}
-                </>\>
+                </>
               )}
             </div>
           ) : (
