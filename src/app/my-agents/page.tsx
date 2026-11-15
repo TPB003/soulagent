@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAccount, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { parseEther } from "viem";
@@ -26,28 +26,28 @@ function ManageCard({
   const [editing, setEditing] = useState(false);
   const [formError, setFormError] = useState("");
   const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+  const { isLoading: isConfirming, isSuccess, error: receiptError } = useWaitForTransactionReceipt({ hash });
   const listed = agent.price > BigInt(0);
   const traits = agentTraits(agent);
   const busy = isPending || isConfirming;
-  const notified = useRef(false);
+  const refreshed = useRef<string | undefined>(undefined);
 
   useTxToast({
     id: `agent-${id}`,
     isPending,
     isConfirming,
     isSuccess,
-    error,
+    error: error ?? receiptError,
     hash,
     success: listed ? "已从市场下架" : "已挂到市场",
   });
 
   useEffect(() => {
-    if (isSuccess && !notified.current) {
-      notified.current = true;
+    if (isSuccess && hash && refreshed.current !== hash) {
+      refreshed.current = hash;
       onChanged();
     }
-  }, [isSuccess, onChanged]);
+  }, [isSuccess, hash, onChanged]);
 
   const submitList = () => {
     setFormError("");
@@ -130,7 +130,12 @@ export default function MyAgentsPage() {
   const total = ready ? Number(supply.data) : 0;
   const directory = useAgentDirectory(isConnected && ready ? total : 0);
   const owners = useOwnerDirectory(isConnected && ready ? total : 0);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const refreshDirectory = directory.refetch;
+  const refreshOwners = owners.refetch;
+  const refresh = useCallback(() => {
+    void refreshDirectory();
+    void refreshOwners();
+  }, [refreshDirectory, refreshOwners]);
 
   const owned = address
     ? directory.agents.filter(({ id }) => (owners.owners.get(id) ?? "").toLowerCase() === address.toLowerCase())
@@ -177,18 +182,9 @@ export default function MyAgentsPage() {
           }
         />
       ) : (
-        <div className="stack" key={refreshKey}>
+        <div className="stack">
           {owned.map(({ id, agent }) => (
-            <ManageCard
-              key={id}
-              id={id}
-              agent={agent}
-              onChanged={() => {
-                directory.refetch();
-                owners.refetch();
-                setRefreshKey((value) => value + 1);
-              }}
-            />
+            <ManageCard key={id} id={id} agent={agent} onChanged={refresh} />
           ))}
         </div>
       )}

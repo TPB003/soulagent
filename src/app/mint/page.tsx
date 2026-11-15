@@ -10,7 +10,7 @@ import { Meter, Notice, Segmented } from "@/components/ui/primitives";
 import { useTxToast } from "@/components/ui/toast";
 import { generatePersonality, generateRadarFromDescription, type AgentPersonality } from "@/lib/ai";
 import { SOUL_AGENT_ABI, SOUL_AGENT_ADDRESS, BASESCAN_TX } from "@/lib/contract";
-import { formatEth } from "@/lib/display";
+import { formatEth, portraitTraits, promptWithTraits } from "@/lib/display";
 import { useMintFee } from "@/lib/hooks";
 
 const TRAIT_HINTS = ["毒舌", "温柔", "理性", "感性", "幽默", "严肃", "乐观", "技术宅", "哲学家", "梦想家"];
@@ -54,20 +54,23 @@ export default function MintPage() {
   const [description, setDescription] = useState("");
   const [urlError, setUrlError] = useState("");
   const [personality, setPersonality] = useState<(AgentPersonality & { radar?: ReturnType<typeof generateRadarFromDescription> }) | null>(null);
+  const [submitted, setSubmitted] = useState<(AgentPersonality & { radar?: ReturnType<typeof generateRadarFromDescription> }) | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [step, setStep] = useState<"input" | "preview">("input");
   const [dismissedHash, setDismissedHash] = useState<string | null>(null);
 
   const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+  const { isLoading: isConfirming, isSuccess, error: receiptError } = useWaitForTransactionReceipt({ hash });
   const minted = Boolean(isSuccess && hash && hash !== dismissedHash);
+  const minting = isPending || isConfirming;
+  const locked = submitted ?? personality;
 
   useTxToast({
     id: "mint",
     isPending,
     isConfirming,
     isSuccess: minted,
-    error,
+    error: error ?? receiptError,
     hash,
     pending: "请在钱包里确认铸造",
     confirming: "铸造交易已提交",
@@ -104,12 +107,19 @@ export default function MintPage() {
   };
 
   const handleMint = () => {
-    if (!personality) return;
+    if (!personality || minting) return;
+    const traits = portraitTraits(personality.traits);
+    const frozen = {
+      ...personality,
+      traits,
+      fullPrompt: promptWithTraits(personality.fullPrompt, traits),
+    };
+    setSubmitted(frozen);
     writeContract({
       address: SOUL_AGENT_ADDRESS,
       abi: SOUL_AGENT_ABI,
       functionName: "mint",
-      args: [personality.name, personality.summary, personality.fullPrompt],
+      args: [frozen.name, frozen.summary, frozen.fullPrompt],
       value: fee,
     });
   };
@@ -120,17 +130,18 @@ export default function MintPage() {
     setName("");
     setDescription("");
     setPersonality(null);
+    setSubmitted(null);
     setUrl("");
     setUrlError("");
   };
 
-  if (minted && personality && hash) {
+  if (minted && submitted && hash) {
     return (
       <main className="page page-narrow">
         <div className="card" style={{ padding: 28, display: "grid", justifyItems: "center", textAlign: "center", gap: 12 }}>
-          <GenerativeAvatar traits={personality.traits} name={personality.name} size={280} />
+          <GenerativeAvatar traits={submitted.traits} name={submitted.name} size={280} />
           <h1 className="page-title">已经铸上链</h1>
-          <p className="lede" style={{ margin: 0 }}>{personality.name} 现在有了自己的编号。</p>
+          <p className="lede" style={{ margin: 0 }}>{submitted.name} 现在有了自己的编号。</p>
           <a className="linkish" href={BASESCAN_TX(hash)} target="_blank" rel="noopener noreferrer">在 BaseScan 查看交易</a>
           <div className="cluster" style={{ justifyContent: "center", marginTop: 8 }}>
             <button type="button" className="btn btn-primary" onClick={reset}>再铸一枚</button>
@@ -242,17 +253,17 @@ export default function MintPage() {
         </div>
       )}
 
-      {step === "preview" && personality && (
+      {step === "preview" && locked && (
         <div className="grid-2">
           <div className="card" style={{ overflow: "hidden" }}>
             <div style={{ padding: 20, display: "grid", placeItems: "center", background: "#0c0d10" }}>
-              <GenerativeAvatar traits={personality.traits} name={personality.name} size={320} />
+              <GenerativeAvatar traits={portraitTraits(locked.traits)} name={locked.name} size={320} />
             </div>
             <div className="card-pad stack">
-              <h2 style={{ margin: 0 }}>{personality.name}</h2>
-              <p className="hint">{personality.summary}</p>
+              <h2 style={{ margin: 0 }}>{locked.name}</h2>
+              <p className="hint">{locked.summary}</p>
               <div className="tags">
-                {personality.traits.map((trait) => <span key={trait} className="tag">{trait}</span>)}
+                {portraitTraits(locked.traits).map((trait) => <span key={trait} className="tag">{trait}</span>)}
               </div>
             </div>
           </div>
@@ -269,11 +280,16 @@ export default function MintPage() {
 
             <details className="card card-pad">
               <summary>查看人格提示词</summary>
-              <pre className="prompt" style={{ marginTop: 12 }}>{personality.fullPrompt}</pre>
+              <pre className="prompt" style={{ marginTop: 12 }}>{promptWithTraits(locked.fullPrompt, locked.traits)}</pre>
             </details>
 
             <div className="cluster">
-              <button type="button" className="btn btn-secondary" onClick={() => { setStep("input"); setPersonality(null); }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={minting}
+                onClick={() => { setStep("input"); setPersonality(null); setSubmitted(null); }}
+              >
                 返回修改
               </button>
               {isConnected ? (

@@ -733,7 +733,8 @@ img, svg { display: block; }
 .kv-label { color: var(--dim) !important; font-size: 11px; letter-spacing: 0.04em; }
 
 .chat {
-  min-height: calc(100vh - 140px);
+  height: calc(100vh - 140px);
+  max-height: calc(100vh - 140px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -741,6 +742,7 @@ img, svg { display: block; }
 
 .chat-head, .composer {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 10px;
   padding: 12px;
@@ -754,6 +756,7 @@ img, svg { display: block; }
 
 .thread {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 18px 16px;
   display: flex;
@@ -879,7 +882,10 @@ details summary:hover { color: var(--ink); }
 @media (max-width: 960px) {
   .hero, .grid-2, .agent-layout, .fuse-grid, .steps, .lineage { grid-template-columns: 1fr; }
   .fuse-grid .fuse-op { display: none; }
-  .chat { min-height: 70vh; }
+  .chat {
+    height: calc(100vh - var(--nav-h) - var(--tab-h) - 48px);
+    max-height: calc(100vh - var(--nav-h) - var(--tab-h) - 48px);
+  }
   .hero { min-height: 0; gap: 28px; }
 }
 

@@ -22,15 +22,31 @@ export function agentBlurb(agent: OnChainAgent) {
   return line.length > 80 ? `${line.slice(0, 80)}…` : line;
 }
 
+export function portraitTraits(traits: string[]) {
+  const seen = new Set<string>();
+  const clean: string[] = [];
+  for (const trait of traits) {
+    const value = trait.trim();
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    clean.push(value);
+  }
+  return clean;
+}
+
+/** Keep the trait list inside the stored prompt so later reads rebuild the same portrait. */
+export function promptWithTraits(prompt: string, traits: string[]) {
+  const clean = portraitTraits(traits);
+  const base = prompt.replace(/\n?性格标签[:：][^\n]*/g, "").trim();
+  if (clean.length === 0) return base;
+  return `${base}\n性格标签：${clean.join("、")}`;
+}
+
 export function agentTraits(agent: OnChainAgent) {
   const source = `${agent.personalitySummary ?? ""}\n${agent.personalityHash ?? ""}`;
   const matched = source.match(/性格标签[:：]\s*([^\n]+)/);
   if (!matched) return [];
-  return matched[1]
-    .split(/[、,，]/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .slice(0, 4);
+  return portraitTraits(matched[1].split(/[、,，]/));
 }
 
 export function generationLabel(gen: number) {

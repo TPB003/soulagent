@@ -100,7 +100,7 @@ export default function AgentDetailPage() {
     isPending,
     isConfirming: receipt.isLoading,
     isSuccess: receipt.isSuccess,
-    error,
+    error: error ?? receipt.error,
     hash,
     success: listed && !showList ? "交易已确认" : "交易已确认",
   });

@@ -9,7 +9,7 @@ import { GenerativeAvatar } from "@/components/GenerativeAvatar";
 import { Notice } from "@/components/ui/primitives";
 import { useTxToast } from "@/components/ui/toast";
 import { SOUL_AGENT_ABI, SOUL_AGENT_ADDRESS, BASESCAN_TX } from "@/lib/contract";
-import { agentBlurb, formatEth, generationLabel, isLiveAgent } from "@/lib/display";
+import { agentBlurb, agentTraits, formatEth, generationLabel, isLiveAgent, portraitTraits, promptWithTraits } from "@/lib/display";
 import { useAgent, useBreedFee, useOwnerOf } from "@/lib/hooks";
 
 type ChildPersonality = { summary: string; fullPrompt: string; traits: string[] };
@@ -65,6 +65,7 @@ export default function FusePage() {
   const [childName, setChildName] = useState("");
   const [step, setStep] = useState<"select" | "preview">("select");
   const [child, setChild] = useState<ChildPersonality | null>(null);
+  const [submitted, setSubmitted] = useState<ChildPersonality | null>(null);
   const [note, setNote] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [ackedHash, setAckedHash] = useState<string | null>(null);
@@ -85,15 +86,16 @@ export default function FusePage() {
   );
 
   const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+  const { isLoading: isConfirming, isSuccess, error: receiptError } = useWaitForTransactionReceipt({ hash });
   const confirmed = Boolean(isSuccess && hash && hash !== ackedHash);
+  const fusing = isPending || isConfirming;
 
   useTxToast({
     id: "fuse",
     isPending,
     isConfirming,
     isSuccess: confirmed,
-    error,
+    error: error ?? receiptError,
     hash,
     pending: "请在钱包里确认融合",
     confirming: "融合交易已提交",
@@ -113,8 +115,8 @@ export default function FusePage() {
         body: JSON.stringify({
           name: childName.trim(),
           mode: "breed",
-          parent1: { name: p1.name, summary: p1.personalitySummary, traits: [] },
-          parent2: { name: p2.name, summary: p2.personalitySummary, traits: [] },
+          parent1: { name: p1.name, summary: p1.personalitySummary, traits: agentTraits(p1) },
+          parent2: { name: p2.name, summary: p2.personalitySummary, traits: agentTraits(p2) },
         }),
       });
       const data = await res.json();
@@ -122,13 +124,13 @@ export default function FusePage() {
       setChild({
         summary: data.summary || `继承了${p1.name}和${p2.name}的性格`,
         fullPrompt: data.fullPrompt || "",
-        traits: data.traits || [],
+        traits: portraitTraits(data.traits || []),
       });
     } catch {
       setChild({
         summary: `继承了${p1.name}和${p2.name}的性格`,
         fullPrompt: `你是${childName.trim()}，融合了${p1.name}和${p2.name}的灵魂。`,
-        traits: ["理性", "温柔", "好奇"],
+        traits: portraitTraits(["理性", "温柔", "好奇"]),
       });
       setNote("模型暂时没有回应，已根据两位亲代写了一版初稿。");
     }
@@ -137,17 +139,25 @@ export default function FusePage() {
   };
 
   const handleMint = () => {
-    if (!child || !id1 || !id2 || !childName.trim()) return;
+    if (!child || !id1 || !id2 || !childName.trim() || fusing) return;
+    const traits = portraitTraits(child.traits);
+    const frozen = {
+      ...child,
+      traits,
+      fullPrompt: promptWithTraits(child.fullPrompt || child.summary, traits),
+    };
+    setSubmitted(frozen);
     writeContract({
       address: SOUL_AGENT_ADDRESS,
       abi: SOUL_AGENT_ABI,
       functionName: "breed",
-      args: [BigInt(id1), BigInt(id2), childName.trim(), child.summary, child.summary],
+      args: [BigInt(id1), BigInt(id2), childName.trim(), child.summary, frozen.fullPrompt],
       value: fee,
     });
   };
 
-  const showDone = confirmed && Boolean(child);
+  const shown = submitted ?? child;
+  const showDone = confirmed && Boolean(submitted);
 
   return (
     <main className="page page-narrow">
@@ -178,22 +188,24 @@ export default function FusePage() {
         </div>
       )}
 
-      {step === "preview" && !showDone && child && p1 && p2 && (
+      {step === "preview" && !showDone && shown && p1 && p2 && (
         <div className="stack">
           <div className="card card-pad lineage">
             <ParentMark name={p1.name} caption="亲代一" />
             <span className="fuse-op">+</span>
             <ParentMark name={p2.name} caption="亲代二" />
             <span className="fuse-op">=</span>
-            <ParentMark name={childName.trim()} caption="新灵魂" traits={child.traits} />
+            <ParentMark name={childName.trim()} caption="新灵魂" traits={shown.traits} />
           </div>
           <section className="card card-pad stack">
             <h2 style={{ margin: 0 }}>{childName.trim()}</h2>
-            <p className="hint">{child.summary}</p>
+            <p className="hint">{shown.summary}</p>
             <div className="tags">
-              {child.traits.map((trait) => <span key={trait} className="tag">{trait}</span>)}
+              {shown.traits.map((trait) => <span key={trait} className="tag">{trait}</span>)}
             </div>
-            {child.fullPrompt && <pre className="prompt">{child.fullPrompt}</pre>}
+            {shown.fullPrompt && (
+              <pre className="prompt">{promptWithTraits(shown.fullPrompt, shown.traits)}</pre>
+            )}
           </section>
           {note && <Notice>{note}</Notice>}
           {isConnected && owner1.data && owner2.data && !ownsBoth && (
@@ -213,14 +225,21 @@ export default function FusePage() {
             ) : (
               <ConnectButton />
             )}
-            <button type="button" className="btn btn-secondary" onClick={() => setStep("select")}>返回</button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={fusing}
+              onClick={() => { setStep("select"); setSubmitted(null); }}
+            >
+              返回
+            </button>
           </div>
         </div>
       )}
 
       {showDone && (
         <div className="card card-pad stack" style={{ alignItems: "center", textAlign: "center" }}>
-          <GenerativeAvatar name={childName.trim() || "child"} traits={child?.traits ?? []} size={240} />
+          <GenerativeAvatar name={childName.trim() || "child"} traits={submitted?.traits ?? []} size={240} />
           <h2 style={{ margin: 0 }}>{childName.trim()} 诞生了</h2>
           <p className="hint">新的编号会在交易确认后出现在市场里。</p>
           {hash && <a className="linkish" href={BASESCAN_TX(hash)} target="_blank" rel="noopener noreferrer">在 BaseScan 查看交易</a>}
@@ -236,6 +255,7 @@ export default function FusePage() {
                 setParent2Id("");
                 setChildName("");
                 setChild(null);
+                setSubmitted(null);
                 setNote("");
               }}
             >
