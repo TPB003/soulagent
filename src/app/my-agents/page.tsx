@@ -1,197 +1,193 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
-import { parseEther, formatEther } from "viem";
-import { ConnectButton } from "@/components/ConnectButton";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { SOUL_AGENT_ABI, SOUL_AGENT_ADDRESS, getAgentEmoji, BASESCAN_TX, type OnChainAgent } from "@/lib/contract";
-import { useTotalSupply } from "@/lib/hooks";
+import { useAccount, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { parseEther } from "viem";
+import { ConnectButton } from "@/components/ConnectButton";
+import { GenerativeAvatar } from "@/components/GenerativeAvatar";
+import { EmptyState } from "@/components/ui/primitives";
+import { useTxToast } from "@/components/ui/toast";
+import { Icons } from "@/components/Icons";
+import { SOUL_AGENT_ABI, SOUL_AGENT_ADDRESS, type OnChainAgent } from "@/lib/contract";
+import { agentBlurb, agentTraits, formatEth, generationLabel } from "@/lib/display";
+import { useAgentDirectory, useOwnerDirectory, useTotalSupply } from "@/lib/hooks";
 
-// 读取单个 Agent 的子组件
-function AgentManageCard({ id, ownerAddr }: { id: number; ownerAddr: string }) {
-  const { data } = useReadContract({
-    address: SOUL_AGENT_ADDRESS, abi: SOUL_AGENT_ABI,
-    functionName: "getAgent", args: [BigInt(id)],
+function ManageCard({
+  id,
+  agent,
+  onChanged,
+}: {
+  id: number;
+  agent: OnChainAgent;
+  onChanged: () => void;
+}) {
+  const [price, setPrice] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [formError, setFormError] = useState("");
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess, error: receiptError } = useWaitForTransactionReceipt({ hash });
+  const listed = agent.price > BigInt(0);
+  const traits = agentTraits(agent);
+  const busy = isPending || isConfirming;
+  const refreshed = useRef<string | undefined>(undefined);
+
+  useTxToast({
+    id: `agent-${id}`,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error: error ?? receiptError,
+    hash,
+    success: listed ? "已从市场下架" : "已挂到市场",
   });
-  const { data: nftOwner } = useReadContract({
-    address: SOUL_AGENT_ADDRESS, abi: SOUL_AGENT_ABI,
-    functionName: "ownerOf", args: [BigInt(id)],
-  });
 
-  const { writeContract, data: txData, isPending } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txData });
+  useEffect(() => {
+    if (isSuccess && hash && refreshed.current !== hash) {
+      refreshed.current = hash;
+      onChanged();
+    }
+  }, [isSuccess, hash, onChanged]);
 
-  const [listPrice, setListPrice] = useState("");
-  const [showListForm, setShowListForm] = useState(false);
-
-  if (!data) return null;
-  const agent = data as OnChainAgent;
-  if (!agent.name || Number(agent.createdAt) === 0) return null;
-  // 只显示自己拥有的
-  if (nftOwner && (nftOwner as string).toLowerCase() !== ownerAddr.toLowerCase()) return null;
-
-  const isListed = agent.price > 0;
-  const priceEth = isListed ? formatEther(agent.price) : null;
-  const gen = Number(agent.generation);
-
-  const handleList = () => {
-    if (!listPrice || parseFloat(listPrice) <= 0) return;
-    writeContract({
-      address: SOUL_AGENT_ADDRESS, abi: SOUL_AGENT_ABI,
-      functionName: "listForSale",
-      args: [BigInt(id), parseEther(listPrice)],
-    });
-    setShowListForm(false);
-  };
-
-  const handleDelist = () => {
-    writeContract({
-      address: SOUL_AGENT_ADDRESS, abi: SOUL_AGENT_ABI,
-      functionName: "delist", args: [BigInt(id)],
-    });
+  const submitList = () => {
+    setFormError("");
+    try {
+      const value = parseEther(price);
+      if (value <= BigInt(0)) throw new Error("价格需要大于 0");
+      writeContract({
+        address: SOUL_AGENT_ADDRESS,
+        abi: SOUL_AGENT_ABI,
+        functionName: "listForSale",
+        args: [BigInt(id), value],
+      });
+      setEditing(false);
+    } catch {
+      setFormError("请输入大于 0 的 ETH 价格");
+    }
   };
 
   return (
-    <div className="card" style={{ padding: 20, display: "flex", gap: 16, alignItems: "flex-start" }}>
-      {/* Avatar */}
-      <div style={{
-        width: 56, height: 56, borderRadius: "var(--r-md)",
-        background: isListed ? "var(--brand-dim)" : "var(--glass-hover)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 28, flexShrink: 0,
-        border: isListed ? "1px solid var(--border-accent)" : "1px solid var(--border-subtle)",
-      }}>
-        {getAgentEmoji(agent.name)}
+    <article className="card manage">
+      <div className="manage-art">
+        <GenerativeAvatar name={agent.name} traits={traits} fluid />
       </div>
-
-      {/* Info */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>{agent.name}</h3>
-          <span className="mono">Gen {gen}</span>
-          {isListed && <span className="pill-accent" style={{ fontSize: 10 }}>在售</span>}
+      <div>
+        <div className="cluster" style={{ gap: 8 }}>
+          <h3>{agent.name}</h3>
+          <span className="badge">{generationLabel(Number(agent.generation))}</span>
+          {listed && <span className="badge badge-live">在售</span>}
         </div>
-        <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 8, lineHeight: 1.5 }}>
-          {agent.personalitySummary || "无描述"}
-        </p>
-
-        {/* Status & Actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          {isListed ? (
+        <p>{agentBlurb(agent)}</p>
+        <div className="manage-actions">
+          {listed ? (
             <>
-              <span style={{
-                fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600,
-                color: "var(--accent)",
-              }}>{priceEth} ETH</span>
-              <button onClick={handleDelist} disabled={isPending || isConfirming}
-                style={{
-                  padding: "6px 14px", borderRadius: "var(--r-sm)", fontSize: 12, fontWeight: 500,
-                  background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)",
-                  color: "var(--red)", cursor: "pointer", fontFamily: "'Inter', sans-serif",
-                  opacity: isPending || isConfirming ? 0.4 : 1,
-                }}>
-                {isPending || isConfirming ? "处理中..." : "下架"}
+              <strong className="num">{formatEth(agent.price)} ETH</strong>
+              <button
+                type="button"
+                className="btn btn-danger btn-sm"
+                disabled={busy}
+                onClick={() => writeContract({
+                  address: SOUL_AGENT_ADDRESS,
+                  abi: SOUL_AGENT_ABI,
+                  functionName: "delist",
+                  args: [BigInt(id)],
+                })}
+              >
+                {busy ? "处理中…" : "下架"}
               </button>
             </>
-          ) : (
+          ) : editing ? (
             <>
-              {showListForm ? (
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <input type="number" value={listPrice} onChange={(e) => setListPrice(e.target.value)}
-                    placeholder="ETH 价格" step="0.001" min="0"
-                    className="input" style={{ width: 120, padding: "6px 10px", fontSize: 12 }} />
-                  <button onClick={handleList} disabled={isPending || isConfirming || !listPrice}
-                    style={{
-                      padding: "6px 14px", borderRadius: "var(--r-sm)", fontSize: 12, fontWeight: 500,
-                      background: "var(--brand)", border: "none", color: "#fff",
-                      cursor: "pointer", fontFamily: "'Inter', sans-serif",
-                      opacity: isPending || isConfirming || !listPrice ? 0.4 : 1,
-                    }}>
-                    确认上架
-                  </button>
-                  <button onClick={() => setShowListForm(false)}
-                    style={{
-                      padding: "6px 10px", borderRadius: "var(--r-sm)", fontSize: 12,
-                      background: "var(--glass)", border: "1px solid var(--border-subtle)",
-                      color: "var(--text-tertiary)", cursor: "pointer", fontFamily: "'Inter', sans-serif",
-                    }}>
-                    取消
-                  </button>
-                </div>
-              ) : (
-                <button onClick={() => setShowListForm(true)}
-                  className="btn-primary" style={{ padding: "6px 14px", fontSize: 12 }}>
-                  上架出售
-                </button>
-              )}
+              <input
+                className="input"
+                style={{ width: 140, height: 32, padding: "0 10px" }}
+                inputMode="decimal"
+                placeholder="价格 ETH"
+                value={price}
+                onChange={(event) => setPrice(event.target.value)}
+                aria-label={`${agent.name} 的价格`}
+              />
+              <button type="button" className="btn btn-primary btn-sm" disabled={busy || !price} onClick={submitList}>
+                确认上架
+              </button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditing(false)}>取消</button>
             </>
+          ) : (
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing(true)}>上架出售</button>
           )}
-          <Link href={`/agent/${id}`} style={{
-            fontSize: 12, color: "var(--text-quaternary)", textDecoration: "none",
-            transition: "color 0.2s",
-          }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-quaternary)"; }}
-          >
-            详情 →
-          </Link>
+          <Link href={`/agent/${id}`} className="linkish">去对话</Link>
         </div>
+        {formError && <p className="hint" style={{ color: "var(--bad)" }}>{formError}</p>}
       </div>
-    </div>
+    </article>
   );
 }
 
 export default function MyAgentsPage() {
   const { isConnected, address } = useAccount();
-  const { data: totalSupplyRaw } = useTotalSupply();
-  const total = totalSupplyRaw ? Number(totalSupplyRaw) : 0;
+  const supply = useTotalSupply();
+  const ready = supply.data !== undefined;
+  const total = ready ? Number(supply.data) : 0;
+  const directory = useAgentDirectory(isConnected && ready ? total : 0);
+  const owners = useOwnerDirectory(isConnected && ready ? total : 0);
+  const refreshDirectory = directory.refetch;
+  const refreshOwners = owners.refetch;
+  const refresh = useCallback(() => {
+    void refreshDirectory();
+    void refreshOwners();
+  }, [refreshDirectory, refreshOwners]);
 
-  if (!isConnected) {
-    return (
-      <div style={{ textAlign: "center", padding: "120px 24px" }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          连接钱包查看你的 Agent
-        </h2>
-        <p style={{ fontSize: 14, color: "var(--text-tertiary)", marginBottom: 24 }}>
-          你可以在这里管理、上架和下架你铸造的 Agent
-        </p>
-        <ConnectButton />
-      </div>
-    );
-  }
+  const owned = address
+    ? directory.agents.filter(({ id }) => (owners.owners.get(id) ?? "").toLowerCase() === address.toLowerCase())
+    : [];
 
-  const allIds = Array.from({ length: Math.max(total, 0) }, (_, i) => i + 1);
+  const loading = isConnected && (!ready || directory.isLoading || owners.isLoading);
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "100px 24px 40px" }}>
-      {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.5px", marginBottom: 8 }}>
-          我的 Agent
-        </h1>
-        <p style={{ fontSize: 14, color: "var(--text-tertiary)" }}>
-          管理你铸造的 Agent · 上架供其他用户使用
-        </p>
-      </div>
+    <main className="page page-narrow">
+      <header className="page-head">
+        <h1 className="page-title">我的灵魂</h1>
+        <p className="lede">你持有的 Agent。可以上架、下架，或点进去继续对话。</p>
+      </header>
 
-      {/* Agent list */}
-      {total > 0 && address ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {allIds.map((id) => (
-            <AgentManageCard key={id} id={id} ownerAddr={address} />
+      {!isConnected ? (
+        <EmptyState
+          icon={Icons.wallet}
+          title="连接钱包后查看"
+          body="这里只列出当前地址持有的灵魂。铸造和买下的都会出现。"
+          action={<ConnectButton />}
+        />
+      ) : loading ? (
+        <div className="stack" aria-busy="true">
+          {Array.from({ length: 2 }, (_, index) => (
+            <div key={index} className="card manage">
+              <div className="skeleton" style={{ width: 72, height: 72, borderRadius: 12 }} />
+              <div className="stack">
+                <div className="skeleton skel-line" />
+                <div className="skeleton skel-line short" />
+              </div>
+            </div>
           ))}
         </div>
+      ) : owned.length === 0 ? (
+        <EmptyState
+          icon={Icons.sparkle}
+          title="这个地址下还没有灵魂"
+          body="去铸造一枚，或者到市场买一枚已经挂出的。"
+          action={
+            <>
+              <Link href="/mint" className="btn btn-primary">去铸造</Link>
+              <Link href="/market" className="btn btn-secondary">去市场</Link>
+            </>
+          }
+        />
       ) : (
-        <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-quaternary)" }}>
-          <p style={{ fontSize: 14, marginBottom: 16 }}>你还没有铸造 Agent</p>
-          <Link href="/mint" className="btn-primary" style={{ textDecoration: "none", fontSize: 13 }}>
-            去铸造
-          </Link>
+        <div className="stack">
+          {owned.map(({ id, agent }) => (
+            <ManageCard key={id} id={id} agent={agent} onChanged={refresh} />
+          ))}
         </div>
       )}
-    </div>
+    </main>
   );
 }
-
-

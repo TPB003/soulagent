@@ -33,31 +33,24 @@ An on-chain AI Agent personality system. Each Agent is a unique digital soul —
 
 ## Homepage
 
-Dual-column hero with live NFT preview card. Content flow:
+Left-aligned headline, on-chain stat bar (`totalSupply`, `mintFee`, `breedFee`), and a labeled generative portrait that is explicitly not a listing. Below that: four steps, then only agents that exist on the contract. If `totalSupply` is zero, the page shows an empty state instead of sample cards.
 
-```
-Hero (title + preview card) → How it works → Core features → Agent market (with filters)
-```
+## Design system: Lumen
 
-- Responsive: desktop 2-col hero / 3-col features / auto-fill market; tablet 2-col; mobile single-col with nav simplified to logo + wallet.
-
-## Design system: Dark Cosmos
-
-Pure black canvas with indigo+cyan ambient glow. Glass-morphism cards with micro-animations.
+Near-black canvas, hairline borders, paper-white primary actions. Iris is only for focus, links, and the chain status dot. Saturated color belongs to the generative portrait.
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| Background | `#030303` (void) | Page canvas |
-| Brand | `#6366f1` (indigo) | CTA buttons, accent, glow |
-| Accent | `#818cf8` | Hover states, links |
-| Cyan | `#22d3ee` | Secondary glow, gradient |
-| Text | `#f0f0f2` → `#b0b4bc` → `#7a7f8a` → `#4e5260` | 4-level hierarchy |
-| Glass | `rgba(255,255,255,0.02)` + `0.04` hover | Card surfaces |
-| Border | `0.04` faint → `0.06` subtle → `0.08` default → `0.12` strong | 4-level borders |
-| Font | Inter + JetBrains Mono | All text + code |
-| Radius | 6px buttons, 8px cards, 12px panels, 9999px pills | Component hierarchy |
+| Canvas | `#08090a` | Page background |
+| Surface | `#101113` | Cards |
+| Ink | `#f4f4f5` / `#c2c2cb` / `#9b9ba6` | Primary, body, captions |
+| Action | `#f4f4f5` on `#141416` | Primary buttons |
+| Accent | `#8b7cf6` | Focus ring and links only |
+| Radius | 10px controls, 14px cards, 22px portraits | |
+| Motion | 160–420ms, `cubic-bezier(0.2, 0.8, 0.2, 1)` | Rise, hover, toasts; disabled under reduced motion |
+| Type | Inter + Noto Sans SC, JetBrains Mono for numbers | |
 
-Ambient background: dual radial gradients (indigo top-left, cyan top-right) + masked grid pattern.
+Mobile uses a bottom tab bar. Transaction status is a toast, not a full-page spinner.
 
 ## Marketplace
 
@@ -91,7 +84,7 @@ All data comes from on-chain or AI — no fake placeholders.
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
 | Frontend | Next.js 14 + Tailwind CSS | App router, server components, utility CSS |
-| Web3 | wagmi + RainbowKit | Wallet connection, contract interaction |
+| Web3 | wagmi | Wallet connection, contract interaction |
 | Contract | Solidity 0.8.x | ERC-721 NFT with mint, fuse, trade logic |
 | Chain | Base Sepolia | Low-cost testnet for demo and hackathon |
 | AI | Xiaomi MiMo (mimo-v2.5-pro) | Personality generation via /api/generate |
@@ -112,10 +105,10 @@ soulagent/
 │   │   └── agent/[id]/page.tsx # Agent detail — AI chat, evolution, BaseScan links
 │   ├── components/
 │   │   ├── NavBar.tsx         # Top nav + wallet connect
-│   │   ├── NFTCard.tsx        # Rarity-tiered NFT card (common/rare/legendary)
+│   │   ├── NFTCard.tsx        # On-chain agent card
 │   │   ├── GenerativeAvatar.tsx # Procedural SVG avatar from personality
 │   │   ├── Icons.tsx          # Custom SVG icon system
-│   │   └── ui/effects.tsx     # ShimmerText, GlowCard, ParticleField, etc.
+│   │   └── ui/                # Toasts, empty states, filters, meters
 │   └── lib/
 │       ├── ai.ts              # Personality generation (MiMo API)
 │       ├── contract.ts        # ABI, address, BaseScan helpers
