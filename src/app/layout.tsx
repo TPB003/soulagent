@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/lib/providers";
-import "@rainbow-me/rainbowkit/styles.css";
 import NavBar from "@/components/NavBar";
 
 export const metadata: Metadata = {

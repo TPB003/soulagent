@@ -8,7 +8,7 @@ export function useAgent(tokenId: number) {
   return useReadContract({
     address: SOUL_AGENT_ADDRESS,
     abi: SOUL_AGENT_ABI,
-    functionName: "agents",
+    functionName: "getAgent",
     args: [BigInt(tokenId)],
   }) as { data: OnChainAgent | undefined; isLoading: boolean; error: Error | null; refetch: () => void };
 }
@@ -50,7 +50,7 @@ export function useAgents(startId: number, count: number) {
     return useReadContract({
       address: SOUL_AGENT_ADDRESS,
       abi: SOUL_AGENT_ABI,
-      functionName: "agents",
+      functionName: "getAgent",
       args: [BigInt(startId + i)],
     });
   });

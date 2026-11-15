@@ -9,13 +9,12 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@rainbow-me/rainbowkit": "^2.2.11",
     "@tanstack/react-query": "^5.100.14",
-    "next": "16.2.6",
+    "next": "16.4.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "viem": "^2.51.2",
-    "wagmi": "^3.6.16"
+    "viem": "^2.57.19",
+    "wagmi": "^3.7.11"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -23,8 +22,13 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.6",
+    "eslint-config-next": "16.4.6",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "baseline-browser-mapping": "2.11.37",
+    "source-map-js": "1.2.2",
+    "zod": "4.6.7"
   }
 }

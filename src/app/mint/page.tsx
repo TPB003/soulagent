@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther } from "viem";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { ConnectButton } from "@/components/ConnectButton";
 import { generatePersonality, AgentPersonality, generateRadarFromDescription } from "@/lib/ai";
 import { SOUL_AGENT_ABI, SOUL_AGENT_ADDRESS } from "@/lib/contract";
 import { GenerativeAvatar } from "@/components/GenerativeAvatar";

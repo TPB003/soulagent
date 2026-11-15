@@ -9,7 +9,12 @@ export const SOUL_AGENT_ABI = [
   { name: "delist", type: "function", stateMutability: "nonpayable", inputs: [{ name: "tokenId", type: "uint256" }], outputs: [] },
   { name: "buyAgent", type: "function", stateMutability: "payable", inputs: [{ name: "tokenId", type: "uint256" }], outputs: [] },
   // Read
-  { name: "agents", type: "function", stateMutability: "view", inputs: [{ name: "", type: "uint256" }], outputs: [{ components: [{ name: "name", type: "string" }, { name: "personalityHash", type: "string" }, { name: "personalitySummary", type: "string" }, { name: "parent1", type: "uint256" }, { name: "parent2", type: "uint256" }, { name: "generation", type: "uint256" }, { name: "price", type: "uint256" }, { name: "creator", type: "address" }, { name: "createdAt", type: "uint256" }], name: "", type: "tuple" }] },
+  // `agents` is the public mapping getter: Solidity returns the struct fields
+  // as separate outputs, not a tuple. Decoding it as a tuple throws.
+  { name: "agents", type: "function", stateMutability: "view", inputs: [{ name: "", type: "uint256" }], outputs: [{ name: "name", type: "string" }, { name: "personalityHash", type: "string" }, { name: "personalitySummary", type: "string" }, { name: "parent1", type: "uint256" }, { name: "parent2", type: "uint256" }, { name: "generation", type: "uint256" }, { name: "price", type: "uint256" }, { name: "creator", type: "address" }, { name: "createdAt", type: "uint256" }] },
+  // `getAgent` returns Agent memory (one tuple). viem decodes that as an object
+  // with named fields, which is what the UI reads.
+  { name: "getAgent", type: "function", stateMutability: "view", inputs: [{ name: "tokenId", type: "uint256" }], outputs: [{ components: [{ name: "name", type: "string" }, { name: "personalityHash", type: "string" }, { name: "personalitySummary", type: "string" }, { name: "parent1", type: "uint256" }, { name: "parent2", type: "uint256" }, { name: "generation", type: "uint256" }, { name: "price", type: "uint256" }, { name: "creator", type: "address" }, { name: "createdAt", type: "uint256" }], name: "", type: "tuple" }] },
   { name: "getChildren", type: "function", stateMutability: "view", inputs: [{ name: "tokenId", type: "uint256" }], outputs: [{ name: "", type: "uint256[]" }] },
   { name: "totalSupply", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
   { name: "mintFee", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
