@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
 import { parseEther, formatEther } from "viem";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { ConnectButton } from "@/components/ConnectButton";
 import Link from "next/link";
 import { SOUL_AGENT_ABI, SOUL_AGENT_ADDRESS, getAgentEmoji, BASESCAN_TX, type OnChainAgent } from "@/lib/contract";
 import { useTotalSupply } from "@/lib/hooks";

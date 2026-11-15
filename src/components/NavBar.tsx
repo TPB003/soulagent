@@ -1,6 +1,6 @@
 "use client";
 
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { ConnectButton } from "@/components/ConnectButton";
 import Link from "next/link";
 import { Icons } from "./Icons";
 import { BASESCAN_CONTRACT } from "@/lib/contract";
