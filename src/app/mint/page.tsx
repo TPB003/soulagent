@@ -5,6 +5,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagm
 import { parseEther } from "viem";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { generatePersonality, AgentPersonality, generateRadarFromDescription } from "@/lib/ai";
+import { API_DESCRIPTION_MAX, API_NAME_MAX } from "@/lib/api-limits";
 import { SOUL_AGENT_ABI, SOUL_AGENT_ADDRESS } from "@/lib/contract";
 import { GenerativeAvatar } from "@/components/GenerativeAvatar";
 import { GlowCard, ShimmerText } from "@/components/ui/effects";
@@ -49,8 +50,8 @@ export default function MintPage() {
 
     const result = analyzeUrl(url);
     if (result) {
-      setName(result.name);
-      setDescription(result.description);
+      setName(result.name.trim().slice(0, API_NAME_MAX));
+      setDescription(result.description.trim().slice(0, API_DESCRIPTION_MAX));
       const p = await generatePersonality(result.name, result.description);
       setPersonality(p);
       setStep("preview");
@@ -256,6 +257,7 @@ export default function MintPage() {
                         onFocus={(e) => e.target.style.borderColor = "rgba(113,112,255,0.4)"}
                         onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.08)"}
                         placeholder="例如：小毒舌、温暖先生、代码之神"
+                        maxLength={API_NAME_MAX}
                         style={inputStyle}
                       />
                     </div>
@@ -268,6 +270,7 @@ export default function MintPage() {
                         onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.08)"}
                         placeholder="描述你想要的 AI 性格，越详细越好...&#10;例如：一个毒舌但内心温暖的程序员，说话犀利但从不恶意伤人，擅长用代码解决问题"
                         rows={5}
+                        maxLength={API_DESCRIPTION_MAX}
                         style={{ ...inputStyle, resize: "none" as const }}
                       />
                     </div>

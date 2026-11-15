@@ -7,6 +7,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import { useAgent } from "@/lib/hooks";
 import { SOUL_AGENT_ABI, SOUL_AGENT_ADDRESS, getAgentEmoji, BASESCAN_TX, type OnChainAgent } from "@/lib/contract";
+import { API_NAME_MAX, API_PARENT_SUMMARY_MAX, API_PROMPT_MAX, API_SUMMARY_MAX, API_TRAITS_MAX } from "@/lib/api-limits";
 
 type Step = "select" | "preview" | "minting" | "done";
 
@@ -44,30 +45,37 @@ export default function FusePage() {
     if (!canProceed || !childName) return;
     setIsGenerating(true);
     try {
+      const clipText = (value: unknown, max: number) => typeof value === "string"
+        ? value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim().slice(0, max)
+        : "";
+      const clipName = (value: unknown) => typeof value === "string"
+        ? value.replace(/[\u0000-\u001F]/g, "").trim().slice(0, API_NAME_MAX)
+        : "";
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: childName,
+          name: clipName(childName),
           mode: "breed",
-          parent1: { name: p1.name, summary: p1.personalitySummary, traits: [] },
-          parent2: { name: p2.name, summary: p2.personalitySummary, traits: [] },
+          parent1: { name: clipName(p1.name), summary: clipText(p1.personalitySummary, API_PARENT_SUMMARY_MAX), traits: [] },
+          parent2: { name: clipName(p2.name), summary: clipText(p2.personalitySummary, API_PARENT_SUMMARY_MAX), traits: [] },
         }),
       });
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
+      if (!res.ok || data.error) throw new Error(typeof data.error === "string" ? data.error : "generate_failed");
+      const traits = Array.isArray(data.traits) ? data.traits.filter((t: unknown) => typeof t === "string").slice(0, API_TRAITS_MAX) : [];
       setChildPersonality({
-        summary: data.summary || `继承了${p1.name}和${p2.name}的融合灵魂`,
-        fullPrompt: data.fullPrompt || "",
-        traits: data.traits || [],
+        summary: (typeof data.summary === "string" && data.summary.trim() ? data.summary : `继承了${p1.name}和${p2.name}的融合灵魂`).slice(0, API_SUMMARY_MAX),
+        fullPrompt: (typeof data.fullPrompt === "string" ? data.fullPrompt : "").slice(0, API_PROMPT_MAX),
+        traits,
       });
       setStep("preview");
     } catch (err) {
       console.error("Generate failed:", err);
       // Fallback
       setChildPersonality({
-        summary: `继承了${p1.name}和${p2.name}的融合灵魂`,
-        fullPrompt: `你是${childName}，融合了${p1.name}和${p2.name}的灵魂。`,
+        summary: `继承了${p1.name}和${p2.name}的融合灵魂`.slice(0, API_SUMMARY_MAX),
+        fullPrompt: `你是${childName}，融合了${p1.name}和${p2.name}的灵魂。`.slice(0, API_PROMPT_MAX),
         traits: ["理性", "温柔", "好奇"],
       });
       setStep("preview");
@@ -148,7 +156,7 @@ export default function FusePage() {
           <div style={{ gridColumn: "1 / -1" }}>
             <label style={{ fontSize: 12, color: "var(--text-quaternary)", fontWeight: 510, letterSpacing: "0.5px", display: "block", marginBottom: 8 }}>子代名字</label>
             <div style={{ display: "flex", gap: 12 }}>
-              <input type="text" value={childName} onChange={(e) => setChildName(e.target.value)} placeholder="给新生命起个名字" style={{
+              <input type="text" value={childName} onChange={(e) => setChildName(e.target.value)} placeholder="给新生命起个名字" maxLength={API_NAME_MAX} style={{
                 flex: 1, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)",
                 borderRadius: 6, padding: "10px 12px", color: "var(--text-primary)", fontSize: 14, outline: "none", fontFamily: "'Inter', sans-serif",
               }} />

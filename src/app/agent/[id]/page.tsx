@@ -7,6 +7,7 @@ import { parseEther, formatEther } from "viem";
 import Link from "next/link";
 import { useAgent, useOwnerOf, useChildren } from "@/lib/hooks";
 import { getAgentEmoji, BASESCAN_NFT, BASESCAN_ADDR, SOUL_AGENT_ADDRESS, SOUL_AGENT_ABI, BASESCAN_CONTRACT, type OnChainAgent } from "@/lib/contract";
+import { API_CHAT_MESSAGE_MAX, API_CHAT_MESSAGES_MAX } from "@/lib/api-limits";
 
 interface Message { role: "user" | "agent"; content: string; timestamp: number; }
 
@@ -104,47 +105,60 @@ export default function AgentDetailPage() {
   const handleSend = useCallback(async () => {
     if (!input.trim() || isTyping) return;
 
-    const userMsg: Message = { role: "user", content: input.trim(), timestamp: Date.now() };
+    const userMsg: Message = { role: "user", content: input.trim().slice(0, API_CHAT_MESSAGE_MAX), timestamp: Date.now() };
     const newMsgs = [...messages, userMsg];
     setMessages(newMsgs);
     setInput("");
     setIsTyping(true);
 
+    const showError = (content: string) => {
+      const errMsg: Message = { role: "agent", content, timestamp: Date.now() };
+      const updated = [...newMsgs, errMsg];
+      setMessages(updated);
+      saveHistory(id, updated);
+      setIsTyping(false);
+    };
+
     try {
+      const tokenId = Number(id);
+      if (!Number.isSafeInteger(tokenId) || tokenId < 1) {
+        showError("无效的 Agent");
+        return;
+      }
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          agentName,
-          systemPrompt: `你是${agentName}，性格描述：${summary}。保持角色，回复简洁有力。`,
-          messages: newMsgs.slice(-10).map(m => ({ role: m.role === "agent" ? "assistant" : "user", content: m.content })),
+          tokenId,
+          messages: newMsgs.slice(-API_CHAT_MESSAGES_MAX).map((m) => ({
+            role: m.role === "agent" ? "assistant" : "user",
+            content: m.content.slice(0, API_CHAT_MESSAGE_MAX),
+          })),
         }),
       });
 
-      const data = await res.json();
-      const agentMsg: Message = {
-        role: "agent",
-        content: data.reply || data.error || "...",
-        timestamp: Date.now(),
-      };
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || typeof data.reply !== "string" || !data.reply) {
+        showError(res.status === 429 ? "请求太频繁，请稍后再试" : res.status === 404 ? "链上没有这个 Agent" : "暂时无法回复，请稍后再试");
+        return;
+      }
 
+      const agentMsg: Message = { role: "agent", content: data.reply, timestamp: Date.now() };
       const updated = [...newMsgs, agentMsg];
       setMessages(updated);
       saveHistory(id, updated);
 
-      // 进化计数
       const newEvo = evoCount + 1;
       setEvoCount(newEvo);
       saveEvo(id, newEvo);
     } catch {
-      const errMsg: Message = { role: "agent", content: "网络错误，稍后再试", timestamp: Date.now() };
-      const updated = [...newMsgs, errMsg];
-      setMessages(updated);
-      saveHistory(id, updated);
+      showError("网络错误，稍后再试");
+      return;
     }
 
     setIsTyping(false);
-  }, [input, isTyping, messages, agentName, summary, id, evoCount]);
+  }, [input, isTyping, messages, id, evoCount]);
 
   if (agentLoading) {
     return (
@@ -260,7 +274,7 @@ export default function AgentDetailPage() {
                       上架出售
                     </button>
                   )}
-                </>\>
+                </>
               )}
             </div>
           ) : (
@@ -367,6 +381,7 @@ export default function AgentDetailPage() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="说点什么..."
+            maxLength={API_CHAT_MESSAGE_MAX}
             style={{
               flex: 1, background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-default)",
               borderRadius: 6, padding: "8px 12px", color: "var(--text-primary)", fontSize: 14, outline: "none",

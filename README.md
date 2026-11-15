@@ -80,7 +80,7 @@ Flow:
 All data comes from on-chain or AI — no fake placeholders.
 
 - **Homepage stats**: `totalSupply()` read directly from contract via wagmi
-- **Agent detail**: `agents(id)` for on-chain metadata, `/api/chat` for MiMo-powered dialogue
+- **Agent detail**: on-chain metadata for the page; `/api/chat` loads that agent with `getAgent(tokenId)` and builds the system prompt on the server. The browser does not send a system prompt.
 - **Market**: contract read calls per token ID
 - **Evolution**: localStorage tracks dialogue count → 4 levels (初始/觉醒/进化/超进化)
 - **BaseScan links**: NavBar contract badge, agent detail NFT/owner/creator links
@@ -118,6 +118,9 @@ soulagent/
 │   │   └── ui/effects.tsx     # ShimmerText, GlowCard, ParticleField, etc.
 │   └── lib/
 │       ├── ai.ts              # Personality generation (MiMo API)
+│       ├── api-limits.ts      # Shared size limits for chat and generate
+│       ├── api-guard.ts       # Rate limit, origin gate, request/output checks
+│       ├── onchain-agent.ts   # Server-side getAgent + chat system prompt
 │       ├── contract.ts        # ABI, address, BaseScan helpers
 │       ├── hooks.ts           # wagmi hooks: useAgent, useTotalSupply
 │       └── providers.tsx      # wagmi + RainbowKit config
@@ -139,6 +142,29 @@ npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+## Environment variables
+
+Copy `.env.example` to `.env.local`. `XIAOMI_API_KEY` stays on the server (do not use a `NEXT_PUBLIC_` prefix).
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `XIAOMI_API_KEY` | yes, for live AI | Xiaomi MiMo key used by `/api/chat` and `/api/generate` |
+| `XIAOMI_BASE_URL` | no | OpenAI-compatible base URL. Default `https://token-plan-cn.xiaomimimo.com/v1` |
+| `BASE_RPC_URL` | no | Base Sepolia RPC for `getAgent`. Default `https://sepolia.base.org` |
+| `API_ABUSE_GATE` | no | `origin` (default) or `off` |
+| `ALLOWED_ORIGINS` | no | Comma-separated extra browser origins allowed to call the API |
+| `RATE_LIMIT_CHAT_MAX` | no | Chat requests per window per IP. Default `20` |
+| `RATE_LIMIT_CHAT_WINDOW_SEC` | no | Chat window length in seconds. Default `60` |
+| `RATE_LIMIT_GENERATE_MAX` | no | Generate requests per window per IP. Default `6` |
+| `RATE_LIMIT_GENERATE_WINDOW_SEC` | no | Generate window length in seconds. Default `60` |
+| `UPSTASH_REDIS_REST_URL` | no | Upstash Redis REST URL for a shared rate-limit counter |
+| `UPSTASH_REDIS_REST_TOKEN` | no | Upstash Redis REST token |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | no | Vercel KV aliases, used when the Upstash pair is unset |
+
+`/api/chat` and `/api/generate` rate-limit by IP. When the Upstash (or Vercel KV) variables are set, counters live in Redis so they hold across serverless instances. When they are unset, each instance keeps an in-memory window. That fallback is safe (it still limits a hot instance) but it resets on a cold start and is not shared, so set Upstash before a public deployment.
+
+`API_ABUSE_GATE=origin` requires the `Origin` host (or, if `Origin` is missing, the `Referer` host) to match this deployment's `Host` / `X-Forwarded-Host`, or to be listed in `ALLOWED_ORIGINS`. The mint, chat, and fuse pages send same-origin requests, so this does not add a wallet popup. It is not authentication: a script can set `Origin` itself. A per-message wallet signature would tie spend to an address, but it would interrupt every reply unless a separate login session were added. The gate is off when `API_ABUSE_GATE=off`.
 
 ## Contract deployment
 

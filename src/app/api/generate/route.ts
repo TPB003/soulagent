@@ -1,100 +1,181 @@
-// API Route: /api/generate
-// 服务端调用小米 MiMo API，不暴露 API Key 给前端
+// POST /api/generate
+// Validates the caller's name/description/parents, then validates the model
+// JSON before it can be minted. Upstream bodies are logged and not returned.
 
 import { NextRequest, NextResponse } from "next/server";
+import { API_BODY_MAX_CHARS, TRAIT_VOCAB } from "@/lib/api-limits";
+import {
+  abuseGateDecision,
+  clientAddress,
+  embedUserText,
+  extractAssistantText,
+  parseModelJson,
+  rateHeaders,
+  sanitizeModelPersonality,
+  takeRateLimit,
+  validateGenerateBody,
+  type GenerateRequest,
+} from "@/lib/api-guard";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+
+const UPSTREAM_TIMEOUT_MS = 20_000;
+
+function apiJson(body: Record<string, unknown>, status = 200, headers?: Record<string, string>) {
+  return NextResponse.json(body, {
+    status,
+    headers: { "Cache-Control": "no-store", ...headers },
+  });
+}
+
+function upstreamChatUrl(): string | null {
+  const raw = (process.env.XIAOMI_BASE_URL || "https://token-plan-cn.xiaomimimo.com/v1").trim();
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:") return null;
+    const path = url.pathname.replace(/\/$/, "");
+    return `${url.origin}${path}/chat/completions`;
+  } catch {
+    return null;
+  }
+}
+
+function logUpstream(status: number, body: string) {
+  const snippet = body.slice(0, 300).replace(/Bearer\s+\S+/gi, "Bearer [redacted]");
+  console.error(`[generate] upstream ${status}: ${snippet}`);
+}
+
+function systemPrompt(): string {
+  return `你是 AI 人格生成器。必须严格返回 JSON，不要有任何额外文字或 markdown 标记。
+
+返回格式（严格遵守）：
+{"summary":"20字以内性格描述","fullPrompt":"100字以内的系统提示词，包含性格规则","traits":["标签1","标签2","标签3"],"radar":{"humor":数字,"kindness":数字,"intelligence":数字,"creativity":数字,"directness":数字,"patience":数字}}
+
+重要规则：
+- traits 必须恰好 3 个，必须从以下词库中选择（一字不差）：${TRAIT_VOCAB.join("、")}
+- radar 每个值是 10-100 的整数
+- summary 不超过 20 个字，fullPrompt 不超过 100 个字
+- 只返回 JSON，不要任何解释`;
+}
+
+function userPrompt(input: GenerateRequest): string {
+  if (input.mode === "breed") {
+    const tags = (traits: string[]) => traits.join("、") || "无";
+    return `融合两个 AI 灵魂，创造新生命。
+
+父代1：${embedUserText(input.parent1.name)}，性格：${embedUserText(input.parent1.summary)}，标签：${tags(input.parent1.traits)}
+父代2：${embedUserText(input.parent2.name)}，性格：${embedUserText(input.parent2.summary)}，标签：${tags(input.parent2.traits)}
+
+子代名字：${embedUserText(input.name)}
+
+融合双方特质，但有自己的独特个性。直接返回 JSON。`;
+  }
+
+  return `为一个 AI Agent 生成人格。
+
+名字：${embedUserText(input.name)}
+用户描述：${embedUserText(input.description)}
+
+根据描述提炼 3 个最匹配的性格标签，生成性格描述和系统提示词。直接返回 JSON。`;
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, description, mode, parent1, parent2 } = await req.json();
+    if (!abuseGateDecision({
+      origin: req.headers.get("origin"),
+      referer: req.headers.get("referer"),
+      host: req.headers.get("host"),
+      forwardedHost: req.headers.get("x-forwarded-host"),
+    }).ok) {
+      return apiJson({ error: "forbidden" }, 403);
+    }
+
+    const contentType = req.headers.get("content-type") || "";
+    if (!contentType.toLowerCase().includes("application/json")) {
+      return apiJson({ error: "invalid_request" }, 400);
+    }
+
+    const raw = await req.text();
+    if (raw.length > API_BODY_MAX_CHARS) return apiJson({ error: "payload_too_large" }, 413);
+
+    let body: unknown;
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      return apiJson({ error: "invalid_request" }, 400);
+    }
+
+    const parsed = validateGenerateBody(body);
+    if (!parsed.ok) {
+      console.warn(`[generate] rejected ${parsed.reason}`);
+      return apiJson({ error: "invalid_request" }, 400);
+    }
+
+    const ip = clientAddress({
+      realIp: req.headers.get("x-real-ip"),
+      forwardedFor: req.headers.get("x-forwarded-for"),
+    });
+    const limit = await takeRateLimit(ip, "generate");
+    if (!limit.ok) return apiJson({ error: "rate_limited" }, 429, rateHeaders(limit));
 
     const apiKey = process.env.XIAOMI_API_KEY;
-    const baseUrl = process.env.XIAOMI_BASE_URL || "https://token-plan-cn.xiaomimimo.com/v1";
+    const endpoint = upstreamChatUrl();
+    if (!apiKey || !endpoint) return apiJson({ error: "ai_unavailable" }, 500);
 
-    if (!apiKey) {
-      return NextResponse.json({ error: "XIAOMI_API_KEY not configured" }, { status: 500 });
-    }
-
-    let systemPrompt: string;
-    let userPrompt: string;
-
-    if (mode === "breed" && parent1 && parent2) {
-      systemPrompt = `你是 AI 人格生成器。必须严格返回 JSON，不要有任何额外文字或 markdown 标记。
-
-返回格式（严格遵守）：
-{"summary":"20字以内性格描述","fullPrompt":"100字以内的系统提示词，包含性格规则","traits":["标签1","标签2","标签3"],"radar":{"humor":数字,"kindness":数字,"intelligence":数字,"creativity":数字,"directness":数字,"patience":数字}}
-
-重要规则：
-- traits 必须恰好 3 个，必须从以下词库中选择（一字不差）：毒舌、温柔、理性、感性、幽默、严肃、乐观、悲观、直接、委婉、好奇、谨慎、大胆、细腻、粗犷、文艺、技术宅、社交达人、哲学家、实干家、梦想家、完美主义者
-- radar 每个值是 10-100 的整数
-- 只返回 JSON，不要任何解释`;
-
-      userPrompt = `融合两个 AI 灵魂，创造新生命。
-
-父代1：${parent1.name}，性格：${parent1.summary}，标签：${parent1.traits.join("、")}
-父代2：${parent2.name}，性格：${parent2.summary}，标签：${parent2.traits.join("、")}
-
-子代名字：${name}
-
-融合双方特质，但有自己的独特个性。直接返回 JSON。`;
-    } else {
-      systemPrompt = `你是 AI 人格生成器。必须严格返回 JSON，不要有任何额外文字或 markdown 标记。
-
-返回格式（严格遵守）：
-{"summary":"20字以内性格描述","fullPrompt":"100字以内的系统提示词，包含性格规则","traits":["标签1","标签2","标签3"],"radar":{"humor":数字,"kindness":数字,"intelligence":数字,"creativity":数字,"directness":数字,"patience":数字}}
-
-重要规则：
-- traits 必须恰好 3 个，必须从以下词库中选择（一字不差）：毒舌、温柔、理性、感性、幽默、严肃、乐观、悲观、直接、委婉、好奇、谨慎、大胆、细腻、粗犷、文艺、技术宅、社交达人、哲学家、实干家、梦想家、完美主义者
-- radar 每个值是 10-100 的整数
-- 只返回 JSON，不要任何解释`;
-
-      userPrompt = `为一个 AI Agent 生成人格。
-
-名字：${name}
-用户描述：${description}
-
-根据描述提炼 3 个最匹配的性格标签，生成性格描述和系统提示词。直接返回 JSON。`;
-    }
-
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: "mimo-v2.5-pro",
         messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
+          { role: "system", content: systemPrompt() },
+          { role: "user", content: userPrompt(parsed.value) },
         ],
         temperature: 0.8,
-        max_tokens: 2000,
+        max_tokens: 800,
       }),
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+      cache: "no-store",
     });
 
     if (!response.ok) {
-      const errText = await response.text();
-      console.error("MiMo API error:", errText);
-      return NextResponse.json({ error: "AI API call failed", detail: errText }, { status: 502 });
+      logUpstream(response.status, await response.text());
+      return apiJson({ error: "ai_failed" }, 502);
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
-
-    // 解析 JSON（处理可能的 markdown 代码块包裹）
-    let parsed;
-    try {
-      const jsonStr = content.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
-      parsed = JSON.parse(jsonStr);
-    } catch {
-      console.error("Failed to parse AI response:", content);
-      return NextResponse.json({ error: "AI returned invalid JSON", raw: content }, { status: 502 });
+    const data: unknown = await response.json();
+    const content = data && typeof data === "object"
+      ? (data as { choices?: { message?: { content?: unknown } }[] }).choices?.[0]?.message?.content
+      : undefined;
+    const text = extractAssistantText(content);
+    if (!text) {
+      console.error("[generate] upstream returned no text");
+      return apiJson({ error: "ai_failed" }, 502);
     }
 
-    return NextResponse.json(parsed);
-  } catch (err: unknown) {
-    console.error("Generate API error:", err);
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const modelJson = parseModelJson(text);
+    const hint = parsed.value.mode === "breed"
+      ? `${parsed.value.parent1.summary} ${parsed.value.parent2.summary}`
+      : parsed.value.description;
+    const personality = sanitizeModelPersonality(modelJson, { name: parsed.value.name, hint });
+    if (!personality) {
+      console.error("[generate] model JSON failed validation");
+      return apiJson({ error: "ai_failed" }, 502);
+    }
+
+    return apiJson({
+      summary: personality.summary,
+      fullPrompt: personality.fullPrompt,
+      traits: personality.traits,
+      radar: personality.radar,
+    }, 200, rateHeaders(limit));
+  } catch (err) {
+    console.error("[generate] failed", err instanceof Error ? err.message : "error");
+    return apiJson({ error: "ai_failed" }, 500);
   }
 }
